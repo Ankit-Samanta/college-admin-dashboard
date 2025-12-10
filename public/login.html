@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>College Admin Login</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body {
+      background: #f4f6f9;
+      font-family: Arial, sans-serif;
+    }
+
+    .login-container {
+      width: 400px;
+      margin: 80px auto;
+      padding: 30px;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+    }
+
+    .login-container h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #27ae60;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #219150;
+    }
+
+    .error-message {
+      color: red;
+      margin-top: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <h2>College Admin Login</h2>
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="Enter your email" />
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Enter your password" />
+    </div>
+    <div class="form-group">
+      <label for="role">Role</label>
+      <select id="role">
+        <option value="admin">Admin</option>
+        <option value="teacher">Teacher</option>
+        <option value="student">Student</option>
+      </select>
+    </div>
+    <button onclick="login()">Login</button>
+    <div class="error-message" id="error-msg"></div>
+  </div>
+
+  <script>
+    function login() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const role = document.getElementById("role").value;
+
+      fetch("http://localhost:8081/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, role })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          localStorage.setItem("role", role);
+          window.location.href = "index.html";
+        } else {
+          document.getElementById("error-msg").textContent = "Invalid credentials. Please try again.";
+        }
+      })
+      .catch(() => {
+        document.getElementById("error-msg").textContent = "Failed to connect to server.";
+      });
+    }
+  </script>
+
+</body>
+</html>

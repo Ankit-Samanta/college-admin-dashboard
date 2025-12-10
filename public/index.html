@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>College Admin Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer src="script.js"></script>
+  <script defer src="chart1.js"></script>
+  <script defer src="chart2.js"></script>
+  <script defer src="dashboard.js"></script>
+  <script defer src="student.js"></script>
+  <script defer src="teacher.js"></script>
+  <script defer src="employee.js"></script>
+  <script defer src="departments.js"></script>
+  <script defer src="courses.js"></script>
+  <script defer src="marks.js"></script>
+  <script defer src="attendance.js"></script>
+  <script defer src="library.js"></script>
+  <script defer src="studymaterial.js"></script>
+  <script defer src="announcement.js"></script>
+</head>
+
+<body>
+  <script>
+    const role = localStorage.getItem("role");
+    console.log("🔍 LocalStorage role is:", role);
+    if (!role) {
+      window.location.replace("login.html");
+    }
+  </script>
+
+
+  <div class="topbar">
+    <div class="logo">
+      <h2>M.S.I.T</h2>
+    </div>
+    <div class="search-container">
+      <input type="text" placeholder="Search here" />
+      <i class="fas fa-search"></i>
+    </div>
+    <i class="fas fa-bell notification"></i>
+    <div class="user">
+      <img src="img/msitlogo.jpeg" alt="MSIT Logo" />
+    </div>
+  </div>
+
+  <div class="container">
+    <aside class="sidebar">
+      <h2>Dashboard</h2>
+      <ul>
+        <li><a href="#dashboard"><i class="fas fa-home"></i> Home</a></li>
+        <li><a href="#students"><i class="fas fa-user-graduate"></i> Students</a></li>
+        <li><a href="#teachers"><i class="fas fa-chalkboard-teacher"></i> Teachers</a></li>
+        <li><a href="#employees"><i class="fas fa-users"></i> Employees</a></li>
+        <li><a href="#departments"><i class="fas fa-building"></i> Departments</a></li>
+        <li><a href="#courses"><i class="fas fa-book"></i> Courses</a></li>
+        <li><a href="#marks"><i class="fas fa-clipboard-list"></i> Marks</a></li>
+        <li><a href="#attendance"><i class="fas fa-calendar-check"></i> Attendance</a></li>
+        <li><a href="#studymaterials"><i class="fas fa-file-upload"></i> Study Materials</a></li>
+        <li><a href="#library"><i class="fas fa-book-reader"></i> Library</a></li>
+        <li><a href="#announcements"><i class="fas fa-bullhorn"></i> Announcements</a></li>
+        <li><a href="#settings"><i class="fas fa-cog"></i> Settings</a></li>
+        <li><a href="#help"><i class="fas fa-question-circle"></i> Help</a></li>
+        <li><a href="login.html" id="logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+      </ul>
+    </aside>
+
+    <main class="main-content">
+      <section id="dashboard" class="section active">
+        <div class="cards">
+          <div class="card">
+            <div class="card-content">
+              <div class="number" id="total-students">0</div>
+              <div class="card-name">Students</div>
+            </div>
+            <div class="icon-box"><i class="fas fa-user-graduate"></i></div>
+          </div>
+
+          <div class="card">
+            <div class="card-content">
+              <div class="number" id="total-teachers">0</div>
+              <div class="card-name">Teachers</div>
+            </div>
+            <div class="icon-box"><i class="fas fa-chalkboard-teacher"></i></div>
+          </div>
+
+          <div class="card">
+            <div class="card-content">
+              <div class="number" id="total-employees">0</div>
+              <div class="card-name">Employees</div>
+            </div>
+            <div class="icon-box"><i class="fas fa-users"></i></div>
+          </div>
+
+          <div class="card">
+            <div class="card-content">
+              <div class="number" id="total-announcements">0</div>
+              <div class="card-name">Announcements</div>
+            </div>
+            <div class="icon-box"><i class="fas fa-bullhorn"></i></div>
+          </div>
+        </div>
+
+        <div class="charts">
+          <div class="chart">
+            <h2>Placements (2014–2025)</h2>
+            <canvas id="chart1"></canvas>
+          </div>
+          <div class="chart">
+            <h2>Employees</h2>
+            <canvas id="chart2"></canvas>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- STUDENT SECTION -->
+      <section id="students" class="section hidden">
+        <h2>Students</h2>
+        <div class="filter-bar">
+          <select id="student-filter-dept">
+            <option value="">All Departments</option>
+          </select>
+          <select id="student-filter-year">
+            <option value="">All Years</option>
+            <option value="1st">1st Year</option>
+            <option value="2nd">2nd Year</option>
+            <option value="3rd">3rd Year</option>
+            <option value="4th">4th Year</option>
+          </select>
+          <button id="add-student">Add Student</button>
+        </div>
+        <table id="student-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Roll</th>
+              <th>Email</th>
+              <th>Department</th>
+              <th>Year</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="teachers" class="data-section section">
+        <h2>Teachers</h2>
+        <button id="add-teacher">Add Teacher</button>
+        <table id="teacher-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Department</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="employees" class="data-section section">
+        <h2>Employees</h2>
+        <button id="add-employee">Add Employee</button>
+
+        <table id="employee-table" class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </section>
+
+
+
+      <section id="departments" class="data-section section">
+        <h2>Departments</h2>
+        <button id="add-department">Add Department</button>
+        <table id="department-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Head</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Strength</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- COURSES SECTION -->
+      <section id="courses" class="section hidden">
+        <h2>Courses</h2>
+        <div class="filter-bar">
+          <select id="course-filter-dept">
+            <option value="">All Departments</option>
+          </select>
+          <select id="course-filter-year">
+            <option value="">All Years</option>
+            <option value="1st">1st Year</option>
+            <option value="2nd">2nd Year</option>
+            <option value="3rd">3rd Year</option>
+            <option value="4th">4th Year</option>
+          </select>
+          <button id="add-course">Add Course</button>
+        </div>
+        <table id="course-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Department</th>
+              <th>Year</th>
+              <th>Credits</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- MARKS SECTION -->
+      <section id="marks" class="section hidden">
+        <h2>Marks</h2>
+
+        <div class="filter-bar">
+          <select id="marks-filter-dept">
+            <option value="">Select Department</option>
+          </select>
+
+          <select id="marks-filter-year">
+            <option value="">Select Year</option>
+            <option value="1st">1st Year</option>
+            <option value="2nd">2nd Year</option>
+            <option value="3rd">3rd Year</option>
+            <option value="4th">4th Year</option>
+          </select>
+
+          <select id="marks-filter-subject">
+            <option value="">Select Subject</option>
+          </select>
+
+          <button id="load-marks-btn">Load Marks</button>
+        </div>
+
+        <table id="marks-table">
+          <thead>
+            <tr>
+              <th>Student Name</th>
+              <th>Subject</th>
+              <th>Marks</th>
+              <th>Department</th>
+              <th>Year</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+
+      <!-- ATTENDANCE SECTION -->
+      <section id="attendance" class="section hidden">
+        <h2>Attendance</h2>
+
+        <div class="filter-bar">
+          <select id="attendance-filter-dept">
+            <option value="">Select Department</option>
+          </select>
+
+          <select id="attendance-filter-year">
+            <option value="">Select Year</option>
+            <option value="1st">1st Year</option>
+            <option value="2nd">2nd Year</option>
+            <option value="3rd">3rd Year</option>
+            <option value="4th">4th Year</option>
+          </select>
+
+          <input type="date" id="attendance-date" style="margin-left: 10px;" />
+
+          <button id="load-attendance">Load Students</button>
+        </div>
+
+        <table id="attendance-table">
+          <thead>
+            <tr>
+              <th>Student Name</th>
+              <th>Status</th>
+              <th>Department</th>
+              <th>Year</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+      <!-- studymaterials section-->
+
+      <section id="studymaterials" class="data-section section">
+        <h2>Study Materials</h2>
+
+        <form id="studyMaterialForm" class="form" enctype="multipart/form-data">
+          <div class="form-group">
+            <label for="materialFile">Upload PDF:</label>
+            <input type="file" id="materialFile" accept="application/pdf" required />
+          </div>
+
+          <div class="form-group">
+            <label for="materialUploadedBy">Uploaded By:</label>
+            <input type="text" id="materialUploadedBy" placeholder="Enter uploader name" required />
+          </div>
+
+          <button type="submit" class="submit-btn">Upload Study Material</button>
+        </form>
+
+        <table id="studyMaterialTable" class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Filename</th>
+              <th>Uploaded By</th>
+              <th>Upload Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+
+          </tbody>
+        </table>
+      </section>
+
+
+
+      <section id="library" class="data-section section">
+        <h2>Library</h2>
+        <button id="add-book">Add Book</button>
+        <table id="library-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Author</th>
+              <th>Subject</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="announcements" class="data-section section">
+        <h2>Announcements</h2>
+        <button id="add-announcement">Add Announcement</button>
+        <table id="announcement-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Message</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="settings" class="data-section section">
+        <h2>Settings</h2>
+        <p>System configuration and preferences.</p>
+      </section>
+
+      <section id="help" class="data-section section">
+        <h2>Help</h2>
+        <p>Need assistance? Email us at <strong>admin@college.edu</strong>.</p>
+      </section>
+    </main>
+  </div>
+
+</body>
+
+</html>
