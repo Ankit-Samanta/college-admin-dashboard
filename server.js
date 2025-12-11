@@ -41,22 +41,24 @@ app.get("/login.html", (req, res) => {
 });
 
 
-// MySQL connection
-
+// MySQL connection (Railway compatible)
 const db = mysql.createConnection({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
-  database: process.env.DB_NAME || "college_admin_dashboard"
+  host: process.env.DB_HOST,        
+  user: process.env.DB_USER,        
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,    
+  port: process.env.DB_PORT,       
+  ssl: { rejectUnauthorized: false } 
 });
 
 db.connect((err) => {
   if (err) {
-    console.error("Unable to connect to MySQL:", err);
+    console.error("❌ MySQL connection failed:", err);
   } else {
-    console.log("Connected to MySQL database");
+    console.log("✅ Connected to Railway MySQL");
   }
 });
+
 
 
 // Helper functions
