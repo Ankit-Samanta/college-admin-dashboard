@@ -1,38 +1,36 @@
 document.addEventListener("DOMContentLoaded", () => {
   const sidebarLinks = document.querySelectorAll(".sidebar ul li a");
-  const sections = document.querySelectorAll(".dashboard-section");
+  const sections = document.querySelectorAll(".section");
 
   function showSection(hash) {
     sections.forEach(section => {
-      section.style.display = "none";
+      section.classList.add("hidden");
     });
 
     const targetSection = document.querySelector(hash);
     if (targetSection) {
-      targetSection.style.display = "block";
+      targetSection.classList.remove("hidden");
     }
   }
 
- 
-  const initialHash = window.location.hash || "#students";
+  const initialHash = window.location.hash || "#dashboard";
   showSection(initialHash);
 
-  
   sidebarLinks.forEach(link => {
     link.addEventListener("click", (e) => {
       e.preventDefault();
       const hash = link.getAttribute("href");
 
-      history.pushState(null, null, hash); 
+      history.pushState(null, null, hash);
       showSection(hash);
     });
   });
 
   window.addEventListener("popstate", () => {
-    showSection(window.location.hash || "#students");
+    showSection(window.location.hash || "#dashboard");
   });
 
-  
+
   fetch("/dashboard/counts")
     .then(res => res.json())
     .then(data => {

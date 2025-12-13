@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <script defer src="script.js"></script>
   <script defer src="chart1.js"></script>
   <script defer src="chart2.js"></script>
@@ -22,6 +23,9 @@
   <script defer src="library.js"></script>
   <script defer src="studymaterial.js"></script>
   <script defer src="announcement.js"></script>
+
+
+  <script defer src="navigation.js"></script>
 </head>
 
 <body>
@@ -111,7 +115,7 @@
             <canvas id="chart1"></canvas>
           </div>
           <div class="chart">
-            <h2>Employees</h2>
+            <h2>Support-Staffs</h2>
             <canvas id="chart2"></canvas>
           </div>
         </div>
@@ -132,7 +136,7 @@
             <option value="3rd">3rd Year</option>
             <option value="4th">4th Year</option>
           </select>
-          <button id="add-student">Add Student</button>
+          <button id="add-student" data-admin> Add Student </button>
         </div>
         <table id="student-table">
           <thead>
@@ -151,12 +155,14 @@
 
       <section id="teachers" class="data-section section">
         <h2>Teachers</h2>
-        <button id="add-teacher">Add Teacher</button>
+        <button id="add-teacher" data-admin> Add Teacher </button>
+
         <table id="teacher-table">
           <thead>
             <tr>
               <th>Name</th>
               <th>Email</th>
+              <th>Phone</th>
               <th>Department</th>
               <th>Actions</th>
             </tr>
@@ -165,9 +171,10 @@
         </table>
       </section>
 
+
       <section id="employees" class="data-section section">
         <h2>Employees</h2>
-        <button id="add-employee">Add Employee</button>
+        <button id="add-employee" data-admin> Add Employee </button>
 
         <table id="employee-table" class="data-table">
           <thead>
@@ -184,11 +191,9 @@
         </table>
       </section>
 
-
-
       <section id="departments" class="data-section section">
         <h2>Departments</h2>
-        <button id="add-department">Add Department</button>
+        <button id="add-department" data-admin> Add Department </button>
         <table id="department-table">
           <thead>
             <tr>
@@ -218,7 +223,7 @@
             <option value="3rd">3rd Year</option>
             <option value="4th">4th Year</option>
           </select>
-          <button id="add-course">Add Course</button>
+          <button id="add-course" data-admin> Add Course </button>
         </div>
         <table id="course-table">
           <thead>
@@ -347,7 +352,7 @@
 
       <section id="library" class="data-section section">
         <h2>Library</h2>
-        <button id="add-book">Add Book</button>
+        <button id="add-book" data-admin> Add Book </button>
         <table id="library-table">
           <thead>
             <tr>
@@ -363,7 +368,7 @@
 
       <section id="announcements" class="data-section section">
         <h2>Announcements</h2>
-        <button id="add-announcement">Add Announcement</button>
+        <button id="add-announcement" data-admin> Add Announcement </button>
         <table id="announcement-table">
           <thead>
             <tr>

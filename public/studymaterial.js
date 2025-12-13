@@ -1,44 +1,51 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const role = localStorage.getItem("role");
+
   const form = document.getElementById("studyMaterialForm");
   const fileInput = document.getElementById("materialFile");
   const uploadedByInput = document.getElementById("materialUploadedBy");
 
-  if (!form || !fileInput || !uploadedByInput) return;
 
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
+  if (role === "student" && form) {
+    form.style.display = "none";
+  }
 
-    const uploaded_by = uploadedByInput.value.trim();
-    const file = fileInput.files[0];
+  if (form) {
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
 
-    if (!uploaded_by || !file) {
-      alert("Please fill in all fields and choose a file.");
-      return;
-    }
+      const uploaded_by = uploadedByInput.value.trim();
+      const file = fileInput.files[0];
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("uploaded_by", uploaded_by);
+      if (!uploaded_by || !file) {
+        alert("Please fill in all fields and choose a file.");
+        return;
+      }
 
-    fetch("/studymaterials/upload", {
-      method: "POST",
-      body: formData
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert("Study material uploaded successfully.");
-          form.reset();
-          loadStudyMaterials();
-        } else {
-          alert("Upload failed.");
-        }
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("uploaded_by", uploaded_by);
+
+      fetch("/studymaterials/upload", {
+        method: "POST",
+        body: formData
       })
-      .catch(err => {
-        console.error("Upload error:", err);
-        alert("Server error.");
-      });
-  });
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            alert("Study material uploaded successfully.");
+            form.reset();
+            loadStudyMaterials();
+          } else {
+            alert("Upload failed.");
+          }
+        })
+        .catch(err => {
+          console.error("Upload error:", err);
+          alert("Server error.");
+        });
+    });
+  }
 
   function loadStudyMaterials() {
     fetch("/studymaterials")
@@ -50,12 +57,19 @@ document.addEventListener("DOMContentLoaded", () => {
         data.forEach(item => {
           const row = document.createElement("tr");
 
+          let actionColumn = "";
+
+
+          if (role === "admin" || role === "teacher") {
+            actionColumn = `<button class="action-btn delete" onclick="deleteMaterial(${item.id})">Delete</button>`;
+          }
+
           row.innerHTML = `
             <td>${item.id}</td>
             <td><a href="/uploads/${item.filename}" target="_blank">${item.filename}</a></td>
             <td>${item.uploaded_by}</td>
             <td>${item.upload_date}</td>
-            <td><button class="action-btn delete" onclick="deleteMaterial(${item.id})">Delete</button></td>
+            <td>${actionColumn}</td>
           `;
 
           tableBody.appendChild(row);
@@ -63,7 +77,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
-  window.deleteMaterial = function(id) {
+  window.deleteMaterial = function (id) {
+    if (role === "student") return alert("Students cannot delete study materials.");
+
     if (!confirm("Are you sure you want to delete this file?")) return;
 
     fetch(`/studymaterials/${id}`, {

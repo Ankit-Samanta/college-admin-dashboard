@@ -11,10 +11,14 @@ function login() {
     .then((res) => res.json())
     .then((data) => {
       if (data.success) {
+
         localStorage.setItem("role", role);
+        localStorage.setItem("user", JSON.stringify({ username: email }));
+
+
         setTimeout(() => {
           window.location.replace("index.html");
-        }, 100); 
+        }, 100);
       } else {
         document.getElementById("error-msg").textContent =
           "Invalid credentials. Please try again.";

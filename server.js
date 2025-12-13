@@ -1,10 +1,11 @@
-// Load environment variables
+const bcrypt = require("bcryptjs");
+// Loading environment variables
 require("dotenv").config();
 
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
-const mysql = require("mysql");
+const mysql = require("mysql2");
 const cors = require("cors");
 const multer = require("multer");
 
@@ -41,23 +42,30 @@ app.get("/login.html", (req, res) => {
 });
 
 
-// MySQL connection (Railway compatible)
-const db = mysql.createConnection({
-  host: process.env.DB_HOST,        
-  user: process.env.DB_USER,        
+// MySQL (Railway Compatible)
+const db = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,    
-  port: process.env.DB_PORT,       
-  ssl: { rejectUnauthorized: false } 
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  ssl: { rejectUnauthorized: false }
 });
 
-db.connect((err) => {
+db.getConnection((err, connection) => {
   if (err) {
-    console.error("❌ MySQL connection failed:", err);
+    console.error("❌ Railway MySQL pool error:", err);
   } else {
-    console.log("✅ Connected to Railway MySQL");
+    console.log("✅ Connected to Railway MySQL (pool)");
+    connection.release();
   }
 });
+
+
+
 
 
 
@@ -73,6 +81,16 @@ function formatYearLabel(value) {
   }
 }
 
+// ROLE-BASED ACCESS CONTROL
+function allowRoles(...roles) {
+  return (req, res, next) => {
+    const role = req.headers["x-role"];
+    if (!roles.includes(role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    next();
+  };
+}
 
 // DASHBOARD
 
@@ -100,7 +118,7 @@ app.get("/dashboard/counts", (req, res) => {
 
 // STUDENTS
 
-app.get("/students", (req, res) => {
+app.get("/students", allowRoles("admin", "teacher"), (req, res) => {
   const role = req.query.role || "";
   let query = "SELECT * FROM studenttable WHERE 1=1";
   const params = [];
@@ -121,9 +139,7 @@ app.get("/students", (req, res) => {
   });
 });
 
-app.post("/students", (req, res) => {
-  const role = req.headers["x-role"];
-  if (role !== "admin") return res.status(403).json({ message: "Access denied" });
+app.post("/students", allowRoles("admin"), (req, res) => {
 
   const { name, roll, email, department, year, password } = req.body;
   if (!name || !roll || !email || !department || !year || !password) {
@@ -131,17 +147,31 @@ app.post("/students", (req, res) => {
   }
 
   const formattedYear = formatYearLabel(year);
-  const sql = `INSERT INTO studenttable (name, roll, email, department, year, password) VALUES (?, ?, ?, ?, ?, ?)`;
 
-  db.query(sql, [name, roll, email, department, formattedYear, password], (err) => {
-    if (err) return res.status(500).json({ message: "Insert failed" });
-    res.json({ message: "Student added successfully" });
-  });
+
+  const hashedPassword = bcrypt.hashSync(password, 10);
+
+  const sql = `
+    INSERT INTO studenttable 
+    (name, roll, email, department, year, password) 
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(
+    sql,
+    [name, roll, email, department, formattedYear, hashedPassword],
+    (err) => {
+      if (err) {
+        console.error("Student insert error:", err);
+        return res.status(500).json({ message: "Insert failed" });
+      }
+      res.json({ message: "Student added successfully" });
+    }
+  );
 });
 
-app.put("/students/:roll", (req, res) => {
-  const role = req.headers["x-role"];
-  if (role !== "admin") return res.status(403).json({ message: "Access denied" });
+
+app.put("/students/:roll", allowRoles("admin"), (req, res) => {
 
   const { name, email, department, year, password } = req.body;
   if (!name || !email || !department || !year) {
@@ -154,7 +184,8 @@ app.put("/students/:roll", (req, res) => {
 
   if (password && password.trim() !== "") {
     fields.push("password = ?");
-    values.push(password);
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    values.push(hashedPassword);
   }
 
   values.push(req.params.roll);
@@ -168,9 +199,7 @@ app.put("/students/:roll", (req, res) => {
   });
 });
 
-app.delete("/students/:roll", (req, res) => {
-  const role = req.headers["x-role"];
-  if (role !== "admin") return res.status(403).json({ message: "Access denied" });
+app.delete("/students/:roll", allowRoles("admin"), (req, res) => {
 
   const sql = "DELETE FROM studenttable WHERE roll = ?";
   db.query(sql, [req.params.roll], (err, result) => {
@@ -182,6 +211,7 @@ app.delete("/students/:roll", (req, res) => {
 });
 
 
+
 // TEACHERS
 
 app.get("/teachers", (_, res) => {
@@ -191,23 +221,67 @@ app.get("/teachers", (_, res) => {
   });
 });
 
-app.post("/teachers", (req, res) => {
-  const { name, email, department } = req.body;
-  db.query("INSERT INTO teachertable (name, email, department) VALUES (?, ?, ?)", [name, email, department], (err) => {
-    if (err) return res.json({ error: err });
-    res.json({ success: true });
-  });
+app.post("/teachers", allowRoles("admin"), (req, res) => {
+
+  const { name, email, phone, department, password } = req.body;
+
+  if (!name || !email || !phone || !department || !password) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+
+  const hashedPassword = bcrypt.hashSync(password, 10);
+
+  const sql = `
+    INSERT INTO teachertable 
+    (name, email, phone, department, password) 
+    VALUES (?, ?, ?, ?, ?)
+  `;
+
+  db.query(
+    sql,
+    [name, email, phone, department, hashedPassword],
+    (err) => {
+      if (err) {
+        console.error("Teacher insert error:", err);
+        return res.status(500).json({ error: "Insert failed" });
+      }
+      res.json({ success: true, message: "Teacher added successfully" });
+    }
+  );
 });
 
-app.put("/teachers/:id", (req, res) => {
-  const { name, email, department } = req.body;
-  db.query("UPDATE teachertable SET name=?, email=?, department=? WHERE id=?", [name, email, department, req.params.id], (err) => {
-    if (err) return res.json({ error: err });
-    res.json({ success: true });
-  });
+app.put("/teachers/:id", allowRoles("admin"), (req, res) => {
+
+  const { name, email, phone, department, password } = req.body;
+
+  if (password && password.trim() !== "") {
+    const hashedPassword = bcrypt.hashSync(password, 10);
+
+    db.query(
+      "UPDATE teachertable SET name=?, email=?, phone=?, department=?, password=? WHERE id=?",
+      [name, email, phone, department, hashedPassword, req.params.id],
+      (err) => {
+        if (err) return res.json({ error: err });
+        res.json({ success: true });
+      }
+    );
+  } else {
+    db.query(
+      "UPDATE teachertable SET name=?, email=?, phone=?, department=? WHERE id=?",
+      [name, email, phone, department, req.params.id],
+      (err) => {
+        if (err) return res.json({ error: err });
+        res.json({ success: true });
+      }
+    );
+  }
 });
 
-app.delete("/teachers/:id", (req, res) => {
+
+
+app.delete("/teachers/:id", allowRoles("admin"), (req, res) => {
+
   db.query("DELETE FROM teachertable WHERE id=?", [req.params.id], (err) => {
     if (err) return res.json({ error: err });
     res.json({ success: true });
@@ -224,7 +298,7 @@ app.get("/employees", (_, res) => {
   });
 });
 
-app.post("/employees", (req, res) => {
+app.post("/employees", allowRoles("admin"), (req, res) => {
   const { name, role, email, phone } = req.body;
   db.query("INSERT INTO employeetable (name, role, email, phone) VALUES (?, ?, ?, ?)", [name, role, email, phone], (err) => {
     if (err) return res.json({ error: err });
@@ -232,7 +306,7 @@ app.post("/employees", (req, res) => {
   });
 });
 
-app.put("/employees/:id", (req, res) => {
+app.put("/employees/:id", allowRoles("admin"), (req, res) => {
   const { name, role, email, phone } = req.body;
   db.query("UPDATE employeetable SET name=?, role=?, email=?, phone=? WHERE id=?", [name, role, email, phone, req.params.id], (err) => {
     if (err) return res.json({ error: err });
@@ -240,7 +314,7 @@ app.put("/employees/:id", (req, res) => {
   });
 });
 
-app.delete("/employees/:id", (req, res) => {
+app.delete("/employees/:id", allowRoles("admin"), (req, res) => {
   db.query("DELETE FROM employeetable WHERE id=?", [req.params.id], (err) => {
     if (err) return res.json({ error: err });
     res.json({ success: true });
@@ -261,7 +335,7 @@ app.get("/departments", (req, res) => {
   });
 });
 
-app.post("/departments", (req, res) => {
+app.post("/departments", allowRoles("admin"), (req, res) => {
   const { name, head, phone, email, strength } = req.body;
 
   if (!name || !head || !phone || !email || !strength) {
@@ -278,7 +352,7 @@ app.post("/departments", (req, res) => {
   });
 });
 
-app.put("/departments/:id", (req, res) => {
+app.put("/departments/:id", allowRoles("admin"), (req, res) => {
   const id = req.params.id;
   const { name, head, phone, email, strength } = req.body;
 
@@ -296,7 +370,7 @@ app.put("/departments/:id", (req, res) => {
   });
 });
 
-app.delete("/departments/:id", (req, res) => {
+app.delete("/departments/:id", allowRoles("admin"), (req, res) => {
   const id = req.params.id;
 
   const sql = "DELETE FROM departmenttable WHERE id = ?";
@@ -319,9 +393,7 @@ app.get("/courses", (_, res) => {
   });
 });
 
-app.post("/courses", (req, res) => {
-  const role = req.headers["x-role"];
-  if (role !== "admin") return res.status(403).json({ success: false, message: "Access denied" });
+app.post("/courses", allowRoles("admin"), (req, res) => {
 
   const { name, department, credits, year } = req.body;
   if (!name || !department || !credits || !year) {
@@ -336,9 +408,7 @@ app.post("/courses", (req, res) => {
   });
 });
 
-app.put("/courses/:id", (req, res) => {
-  const role = req.headers["x-role"];
-  if (role !== "admin") return res.status(403).json({ success: false, message: "Access denied" });
+app.put("/courses/:id", allowRoles("admin"), (req, res) => {
 
   const { name, department, credits, year } = req.body;
   if (!name || !department || !credits || !year) {
@@ -353,9 +423,7 @@ app.put("/courses/:id", (req, res) => {
   });
 });
 
-app.delete("/courses/:id", (req, res) => {
-  const role = req.headers["x-role"];
-  if (role !== "admin") return res.status(403).json({ success: false, message: "Access denied" });
+app.delete("/courses/:id", allowRoles("admin"), (req, res) => {
 
   const sql = "DELETE FROM coursetable WHERE id=?";
   db.query(sql, [req.params.id], (err) => {
@@ -377,8 +445,8 @@ app.get("/studymaterials", (req, res) => {
   });
 });
 
-app.post("/studymaterials/upload", upload.single("file"), (req, res) => {
-  const { uploaded_by } = req.body;
+app.post("/studymaterials/upload", allowRoles("admin", "teacher"), upload.single("file"), (req, res) => {
+  const uploaded_by = req.headers["x-role"];
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
@@ -398,7 +466,7 @@ app.post("/studymaterials/upload", upload.single("file"), (req, res) => {
   );
 });
 
-app.delete("/studymaterials/:id", (req, res) => {
+app.delete("/studymaterials/:id", allowRoles("admin", "teacher"), (req, res) => {
   const id = req.params.id;
 
   db.query("SELECT filename FROM studymaterialtable WHERE id = ?", [id], (err, result) => {
@@ -428,7 +496,7 @@ app.get("/library", (_, res) => {
   });
 });
 
-app.post("/library", (req, res) => {
+app.post("/library", allowRoles("admin"), (req, res) => {
   const { title, author, subject } = req.body;
   db.query("INSERT INTO librarytable (title, author, subject) VALUES (?, ?, ?)", [title, author, subject], (err) => {
     if (err) return res.json({ error: err });
@@ -436,7 +504,7 @@ app.post("/library", (req, res) => {
   });
 });
 
-app.put("/library/:id", (req, res) => {
+app.put("/library/:id", allowRoles("admin"), (req, res) => {
   const { title, author, subject } = req.body;
 
   const sql = `
@@ -451,7 +519,7 @@ app.put("/library/:id", (req, res) => {
   });
 });
 
-app.delete("/library/:id", (req, res) => {
+app.delete("/library/:id", allowRoles("admin"), (req, res) => {
   db.query("DELETE FROM librarytable WHERE id=?", [req.params.id], (err) => {
     if (err) return res.json({ error: err });
     res.json({ success: true });
@@ -495,7 +563,7 @@ app.get("/marks/students", (req, res) => {
   });
 });
 
-app.post("/marks", (req, res) => {
+app.post("/marks", allowRoles("admin", "teacher"), (req, res) => {
   const { student_name, subject, marks, department, year } = req.body;
 
   const sql = `
@@ -510,8 +578,8 @@ app.post("/marks", (req, res) => {
   });
 });
 
-// -----------------------------
-// Fetch attendance records (by department/year/date)
+
+// Fetching attendance records (by department/year/date)
 app.get("/attendance", (req, res) => {
   const { department, year, date } = req.query;
 
@@ -532,7 +600,7 @@ app.get("/attendance/students", (req, res) => {
   const { department, year } = req.query;
   if (!department || !year) return res.json([]);
 
-const sql = "SELECT id, name FROM studenttable WHERE department=? AND TRIM(LOWER(year)) = LOWER(TRIM(?))";
+  const sql = "SELECT id, name FROM studenttable WHERE department=? AND TRIM(LOWER(year)) = LOWER(TRIM(?))";
 
   db.query(sql, [department, year], (err, result) => {
     if (err) return res.status(500).json({ error: "Failed to fetch students" });
@@ -540,8 +608,8 @@ const sql = "SELECT id, name FROM studenttable WHERE department=? AND TRIM(LOWER
   });
 });
 
-// Bulk save attendance (Save All)
-app.post("/attendance/bulk", (req, res) => {
+
+app.post("/attendance/bulk", allowRoles("admin", "teacher"), (req, res) => {
   const { records } = req.body;
   if (!records || !records.length) return res.status(400).json({ message: "No records to save" });
 
@@ -569,7 +637,7 @@ app.get("/announcements", (_, res) => {
   });
 });
 
-app.post("/announcements", (req, res) => {
+app.post("/announcements", allowRoles("admin", "teacher"), (req, res) => {
   const { title, message, date } = req.body;
   db.query("INSERT INTO announcementtable (title, message, date) VALUES (?, ?, ?)", [title, message, date], (err) => {
     if (err) return res.json({ error: err });
@@ -577,7 +645,7 @@ app.post("/announcements", (req, res) => {
   });
 });
 
-app.put("/announcements/:id", (req, res) => {
+app.put("/announcements/:id", allowRoles("admin", "teacher"), (req, res) => {
   const { title, message, date } = req.body;
   db.query("UPDATE announcementtable SET title=?, message=?, date=? WHERE id=?", [title, message, date, req.params.id], (err) => {
     if (err) return res.json({ error: err });
@@ -585,7 +653,7 @@ app.put("/announcements/:id", (req, res) => {
   });
 });
 
-app.delete("/announcements/:id", (req, res) => {
+app.delete("/announcements/:id", allowRoles("admin", "teacher"), (req, res) => {
   db.query("DELETE FROM announcementtable WHERE id=?", [req.params.id], (err) => {
     if (err) return res.json({ error: err });
     res.json({ success: true });
@@ -597,29 +665,44 @@ app.delete("/announcements/:id", (req, res) => {
 app.post("/login", (req, res) => {
   const { email, password, role } = req.body;
 
-  let tableName;
-  switch (role) {
-    case "admin":
-      tableName = "usertable"; 
-      break;
-    case "teacher":
-      tableName = "teachertable";
-      break;
-    case "student":
-      tableName = "studenttable";
-      break;
-    default:
-      return res.status(400).json({ success: false, message: "Invalid role" });
+  let table, field;
+
+  if (role === "admin") {
+    table = "usertable";
+    field = "email";
+  } else if (role === "teacher") {
+    table = "teachertable";
+    field = "email";
+  } else if (role === "student") {
+    table = "studenttable";
+    field = "email";
+  } else {
+    return res.status(400).json({ success: false, message: "Invalid role" });
   }
 
-  const sql = `SELECT * FROM ${tableName} WHERE ${role === 'admin' ? 'username' : 'email'} = ? AND password = ? LIMIT 1`;
+  const sql = `SELECT * FROM ${table} WHERE ${field} = ? LIMIT 1`;
 
-  db.query(sql, [email, password], (err, results) => {
-    if (err) return res.status(500).json({ success: false, error: "DB error" });
-    if (results.length === 0) {
+  db.query(sql, [email], (err, rows) => {
+    if (err || rows.length === 0) {
       return res.json({ success: false, message: "Invalid credentials" });
     }
-    return res.json({ success: true, message: "Login successful" });
+
+    const user = rows[0];
+
+    const isMatch = bcrypt.compareSync(password, user.password);
+    if (!isMatch) {
+      return res.json({ success: false, message: "Invalid credentials" });
+    }
+
+    res.json({
+      success: true,
+      role,
+      user: {
+        id: user.id,
+        name: user.name || user.username,
+        email: user.email
+      }
+    });
   });
 });
 
