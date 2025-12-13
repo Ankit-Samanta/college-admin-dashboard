@@ -1,3 +1,5 @@
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
 document.addEventListener("DOMContentLoaded", () => {
   loadLibrary();
 
@@ -6,9 +8,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const author = prompt("Enter author:");
     const subject = prompt("Enter subject:");
 
-    if (!title || !author || !subject) return alert("All fields are required.");
+    if (!title || !author || !subject) {
+      return alert("All fields are required.");
+    }
 
-    fetch("/library", {
+    fetch(`${BASE_URL}/library`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, author, subject }),
@@ -24,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function loadLibrary() {
-  fetch("/library")
+  fetch(`${BASE_URL}/library`)
     .then(res => res.json())
     .then(data => {
       const tbody = document.querySelector("#library-table tbody");
@@ -47,7 +51,7 @@ function loadLibrary() {
 }
 
 function editBook(id) {
-  fetch("/library")
+  fetch(`${BASE_URL}/library`)
     .then(res => res.json())
     .then(books => {
       const book = books.find(b => b.id === id);
@@ -59,7 +63,7 @@ function editBook(id) {
 
       if (!title || !author || !subject) return;
 
-      fetch(`/library/${id}`, {
+      fetch(`${BASE_URL}/library/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, author, subject }),
@@ -77,8 +81,8 @@ function editBook(id) {
 function deleteBook(id) {
   if (!confirm("Delete this book?")) return;
 
-  fetch(`/library/${id}`, {
-    method: "DELETE"
+  fetch(`${BASE_URL}/library/${id}`, {
+    method: "DELETE",
   })
     .then(res => res.json())
     .then(data => {

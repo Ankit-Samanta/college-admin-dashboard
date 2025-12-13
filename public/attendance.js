@@ -1,3 +1,5 @@
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
 document.addEventListener("DOMContentLoaded", () => {
   const role = localStorage.getItem("role");
 
@@ -22,7 +24,7 @@ function ensureDatePicker() {
 }
 
 function loadDepartments() {
-  fetch("/departments")
+  fetch(`${BASE_URL}/departments`)
     .then(r => r.json())
     .then(data => {
       const deptFilter = document.getElementById("attendance-filter-dept");
@@ -54,8 +56,8 @@ async function loadAttendanceTable() {
 
   try {
     const [studentsRes, attendanceRes] = await Promise.all([
-      fetch(`/attendance/students?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}`),
-      fetch(`/attendance?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}&date=${encodeURIComponent(date)}`)
+      fetch(`${BASE_URL}/attendance/students?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}`),
+      fetch(`${BASE_URL}/attendance?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}&date=${encodeURIComponent(date)}`)
     ]);
 
     const students = await studentsRes.json();
@@ -81,22 +83,18 @@ async function loadAttendanceTable() {
       const existing = map[student.id];
       const editable = (role === "admin" || role === "teacher");
 
-      // Name
       const nameTd = document.createElement("td");
       nameTd.textContent = student.name;
       tr.appendChild(nameTd);
 
-      // Status
       const statusTd = document.createElement("td");
       if (editable) {
         const sel = document.createElement("select");
         sel.className = "attendance-status";
-
         sel.innerHTML = `
           <option value="Absent">Absent</option>
           <option value="Present">Present</option>
         `;
-
         sel.value = existing?.status || "Absent";
         statusTd.appendChild(sel);
       } else {
@@ -104,12 +102,10 @@ async function loadAttendanceTable() {
       }
       tr.appendChild(statusTd);
 
-      // Department
       const deptTd = document.createElement("td");
       deptTd.textContent = dept;
       tr.appendChild(deptTd);
 
-      // Year
       const yearTd = document.createElement("td");
       yearTd.textContent = year;
       tr.appendChild(yearTd);
@@ -125,7 +121,6 @@ async function loadAttendanceTable() {
   }
 }
 
-// Add Save All button
 function addSaveAllButton() {
   const role = localStorage.getItem("role");
   const container = document.querySelector("#attendance-table").parentElement;
@@ -159,7 +154,6 @@ function removeSaveAllButton() {
   if (btn) btn.remove();
 }
 
-
 async function saveAllAttendance(dept, year, date) {
   const tbodyRows = document.querySelectorAll("#attendance-table tbody tr");
   const btn = document.getElementById("save-all-attendance");
@@ -170,7 +164,7 @@ async function saveAllAttendance(dept, year, date) {
   const records = [];
   tbodyRows.forEach(row => {
     const sel = row.querySelector(".attendance-status");
-    if (!sel) return; 
+    if (!sel) return;
 
     const studentId = row.dataset.studentId;
     const name = row.cells[0]?.innerText?.trim();
@@ -194,14 +188,13 @@ async function saveAllAttendance(dept, year, date) {
   }
 
   try {
-    const res = await fetch("/attendance/bulk", {
+    const res = await fetch(`${BASE_URL}/attendance/bulk`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ records })
     });
 
     const body = await res.json();
-
     if (!res.ok || !body.success) throw new Error("Save failed");
 
     alert("Attendance saved successfully.");

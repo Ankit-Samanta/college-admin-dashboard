@@ -1,3 +1,5 @@
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
 document.addEventListener("DOMContentLoaded", () => {
 
   const role = localStorage.getItem("role");
@@ -12,9 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let selectedYear = "";
   let selectedSubject = "";
 
-
-
-  fetch("/departments")
+  fetch(`${BASE_URL}/departments`)
     .then(res => res.json())
     .then(data => {
       data.forEach(d => {
@@ -25,7 +25,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
- 
   [deptFilter, yearFilter].forEach(f => {
     f.addEventListener("change", () => {
       selectedDepartment = deptFilter.value;
@@ -38,13 +37,12 @@ document.addEventListener("DOMContentLoaded", () => {
     selectedSubject = subjectFilter.value;
   });
 
- 
   function loadSubjects() {
     subjectFilter.innerHTML = `<option value="">Select Subject</option>`;
 
     if (!selectedDepartment || !selectedYear) return;
 
-    fetch(`/courses?department=${selectedDepartment}&year=${selectedYear}`)
+    fetch(`${BASE_URL}/courses?department=${selectedDepartment}&year=${selectedYear}`)
       .then(res => res.json())
       .then(subjects => {
         subjects.forEach(course => {
@@ -56,8 +54,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
-  
-  
   loadBtn.addEventListener("click", () => {
     selectedDepartment = deptFilter.value;
     selectedYear = yearFilter.value;
@@ -74,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadMarksTable() {
     marksTableBody.innerHTML = "";
 
-    fetch(`/marks/students?department=${selectedDepartment}&year=${selectedYear}`)
+    fetch(`${BASE_URL}/marks/students?department=${selectedDepartment}&year=${selectedYear}`)
       .then(res => res.json())
       .then(students => {
 
@@ -100,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
           marksTableBody.appendChild(row);
         });
 
-        fetch(`/marks?department=${selectedDepartment}&year=${selectedYear}&subject=${selectedSubject}`)
+        fetch(`${BASE_URL}/marks?department=${selectedDepartment}&year=${selectedYear}&subject=${selectedSubject}`)
           .then(res => res.json())
           .then(existing => {
 
@@ -109,15 +105,14 @@ document.addEventListener("DOMContentLoaded", () => {
             existing.forEach(m => {
               rows.forEach(r => {
                 if (r.children[0].textContent === m.student_name) {
-                  r.children[2].textContent = m.marks; 
-                  r.dataset.id = m.id; 
+                  r.children[2].textContent = m.marks;
+                  r.dataset.id = m.id;
                 }
               });
             });
           });
       });
   }
-
 
   marksTableBody.addEventListener("click", (e) => {
 
@@ -133,7 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const payload = { student_name, subject, marks, department, year };
 
-    fetch("/marks", {
+    fetch(`${BASE_URL}/marks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

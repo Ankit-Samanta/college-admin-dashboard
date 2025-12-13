@@ -1,9 +1,11 @@
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
 document.addEventListener("DOMContentLoaded", () => {
   const departmentTableBody = document.querySelector("#department-table tbody");
   const addDepartmentBtn = document.getElementById("add-department");
 
   function loadDepartments() {
-    fetch("/departments")
+    fetch(`${BASE_URL}/departments`)
       .then(res => res.json())
       .then(data => {
         departmentTableBody.innerHTML = "";
@@ -39,7 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    fetch("/departments", {
+    fetch(`${BASE_URL}/departments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, head, phone, email, strength }),
@@ -71,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      fetch(`/departments/${id}`, {
+      fetch(`${BASE_URL}/departments/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, head, phone, email, strength }),
@@ -89,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (e.target.classList.contains("delete")) {
       if (confirm("Are you sure you want to delete this department?")) {
-        fetch(`/departments/${id}`, {
+        fetch(`${BASE_URL}/departments/${id}`, {
           method: "DELETE",
         })
           .then(res => res.json())

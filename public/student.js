@@ -1,3 +1,5 @@
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
 document.addEventListener("DOMContentLoaded", () => {
   const role = localStorage.getItem("role");
   console.log("🔓 Logged in as:", role);
@@ -5,8 +7,10 @@ document.addEventListener("DOMContentLoaded", () => {
   loadStudentDepartments();
   loadStudents();
 
-  document.getElementById("student-filter-dept").addEventListener("change", loadStudents);
-  document.getElementById("student-filter-year").addEventListener("change", loadStudents);
+  document.getElementById("student-filter-dept")
+    .addEventListener("change", loadStudents);
+  document.getElementById("student-filter-year")
+    .addEventListener("change", loadStudents);
 
   const addBtn = document.getElementById("add-student");
   if (role === "admin") {
@@ -17,12 +21,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+
+
 function loadStudentDepartments() {
-  fetch("http://localhost:8081/departments")
+  fetch(`${BASE_URL}/departments`)
     .then(res => res.json())
     .then(data => {
       const dropdown = document.getElementById("student-filter-dept");
       if (!dropdown) return;
+
       dropdown.innerHTML = `<option value="">All Departments</option>`;
       data.forEach(dept => {
         if (dept && dept.name) {
@@ -36,12 +43,14 @@ function loadStudentDepartments() {
     .catch(err => console.error("❌ Failed to load departments:", err));
 }
 
+
+
 function loadStudents() {
   const department = document.getElementById("student-filter-dept").value;
   const year = document.getElementById("student-filter-year").value;
   const role = localStorage.getItem("role");
 
-  let url = `http://localhost:8081/students?role=${role}`;
+  let url = `${BASE_URL}/students?role=${role}`;
   if (department) url += `&department=${encodeURIComponent(department)}`;
   if (year) url += `&year=${encodeURIComponent(year)}`;
 
@@ -50,6 +59,7 @@ function loadStudents() {
     .then(students => {
       const tbody = document.querySelector("#student-table tbody");
       tbody.innerHTML = "";
+
       students.forEach(student => {
         const row = document.createElement("tr");
         row.innerHTML = `
@@ -59,17 +69,17 @@ function loadStudents() {
           <td>${student.department}</td>
           <td>${formatYear(student.year)}</td>
           <td class="actions">
-  ${role === "admin" ? `
-    <button class="action-btn edit" onclick="editStudent('${student.roll}')">Edit</button>
-    <button class="action-btn delete" onclick="deleteStudent('${student.roll}')">Delete</button>
-  ` : ""}
-</td>
-
+            ${role === "admin" ? `
+              <button class="action-btn edit" onclick="editStudent('${student.roll}')">Edit</button>
+              <button class="action-btn delete" onclick="deleteStudent('${student.roll}')">Delete</button>
+            ` : ""}
+          </td>
         `;
         tbody.appendChild(row);
       });
     });
 }
+
 
 function formatYear(value) {
   switch (value) {
@@ -85,6 +95,8 @@ function formatYear(value) {
   }
 }
 
+
+
 function addStudent() {
   const name = prompt("Enter student name:");
   const roll = prompt("Enter roll number:");
@@ -99,7 +111,7 @@ function addStudent() {
     return;
   }
 
-  fetch("http://localhost:8081/students", {
+  fetch(`${BASE_URL}/students`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -118,6 +130,8 @@ function addStudent() {
     });
 }
 
+
+
 function editStudent(roll) {
   const name = prompt("Enter updated name:");
   const email = prompt("Enter updated email:");
@@ -131,7 +145,7 @@ function editStudent(roll) {
     return;
   }
 
-  fetch(`http://localhost:8081/students/${roll}`, {
+  fetch(`${BASE_URL}/students/${roll}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -150,10 +164,12 @@ function editStudent(roll) {
     });
 }
 
+
+
 function deleteStudent(roll) {
   if (!confirm("Are you sure you want to delete this student?")) return;
 
-  fetch(`http://localhost:8081/students/${roll}`, {
+  fetch(`${BASE_URL}/students/${roll}`, {
     method: "DELETE",
     headers: {
       "x-role": localStorage.getItem("role"),

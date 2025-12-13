@@ -1,3 +1,5 @@
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
 document.addEventListener("DOMContentLoaded", () => {
   const courseTable = document.querySelector("#course-table tbody");
   const addBtn = document.getElementById("add-course");
@@ -16,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function loadDepartments() {
-    fetch("/departments")
+    fetch(`${BASE_URL}/departments`)
       .then(res => res.json())
       .then(depts => {
         deptFilter.innerHTML = `<option value="">All Departments</option>`;
@@ -31,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function loadCourses() {
-    fetch("/courses")
+    fetch(`${BASE_URL}/courses`)
       .then(res => res.json())
       .then(data => {
         courseTable.innerHTML = "";
@@ -75,7 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    fetch("/courses", {
+    fetch(`${BASE_URL}/courses`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -91,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.editCourse = function (id) {
-    fetch("/courses")
+    fetch(`${BASE_URL}/courses`)
       .then(res => res.json())
       .then(courses => {
         const course = courses.find(c => c.id === id);
@@ -108,7 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        fetch(`/courses/${id}`, {
+        fetch(`${BASE_URL}/courses/${id}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -127,7 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.deleteCourse = function (id) {
     if (!confirm("Delete this course?")) return;
 
-    fetch(`/courses/${id}`, {
+    fetch(`${BASE_URL}/courses/${id}`, {
       method: "DELETE",
       headers: { "x-role": localStorage.getItem("role") }
     })

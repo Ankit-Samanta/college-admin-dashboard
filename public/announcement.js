@@ -1,8 +1,8 @@
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
 document.addEventListener("DOMContentLoaded", () => {
   const role = localStorage.getItem("role");
-
   const addBtn = document.getElementById("add-announcement");
-
 
   if (role === "student" && addBtn) {
     addBtn.style.display = "none";
@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      fetch("/announcements", {
+      fetch(`${BASE_URL}/announcements`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, message, date })
@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function loadAnnouncements() {
   const role = localStorage.getItem("role");
 
-  fetch("/announcements")
+  fetch(`${BASE_URL}/announcements`)
     .then(res => res.json())
     .then(data => {
       const tbody = document.querySelector("#announcement-table tbody");
@@ -50,8 +50,6 @@ function loadAnnouncements() {
         const formattedDate = new Date(a.date).toISOString().split("T")[0];
 
         let actionColumn = "";
-
-
         if (role === "admin" || role === "teacher") {
           actionColumn = `
             <button class="action-btn edit" onclick="editAnnouncement(${a.id})">Edit</button>
@@ -75,7 +73,7 @@ function editAnnouncement(id) {
   const role = localStorage.getItem("role");
   if (role === "student") return alert("Students cannot edit announcements.");
 
-  fetch("/announcements")
+  fetch(`${BASE_URL}/announcements`)
     .then(res => res.json())
     .then(data => {
       const ann = data.find(a => a.id === id);
@@ -87,7 +85,7 @@ function editAnnouncement(id) {
 
       if (!title || !message) return;
 
-      fetch(`/announcements/${id}`, {
+      fetch(`${BASE_URL}/announcements/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, message, date })
@@ -108,7 +106,7 @@ function deleteAnnouncement(id) {
 
   if (!confirm("Delete this announcement?")) return;
 
-  fetch(`/announcements/${id}`, {
+  fetch(`${BASE_URL}/announcements/${id}`, {
     method: "DELETE"
   })
     .then(res => res.json())

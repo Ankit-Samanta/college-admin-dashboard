@@ -1,9 +1,11 @@
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
 document.addEventListener("DOMContentLoaded", () => {
   const employeeTableBody = document.querySelector("#employee-table tbody");
   const addEmployeeBtn = document.getElementById("add-employee");
 
   function loadEmployees() {
-    fetch("/employees")
+    fetch(`${BASE_URL}/employees`)
       .then((res) => res.json())
       .then((data) => {
         employeeTableBody.innerHTML = "";
@@ -24,7 +26,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
- 
   addEmployeeBtn.addEventListener("click", () => {
     const name = prompt("Enter employee name:");
     const role = prompt("Enter employee role:");
@@ -36,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    fetch("/employees", {
+    fetch(`${BASE_URL}/employees`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, role, email, phone }),
@@ -54,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.deleteEmployee = function (id) {
     if (!confirm("Are you sure you want to delete this employee?")) return;
 
-    fetch(`/employees/${id}`, {
+    fetch(`${BASE_URL}/employees/${id}`, {
       method: "DELETE",
     })
       .then((res) => res.json())
@@ -67,7 +68,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   };
 
- 
   window.editEmployee = function (id) {
     const name = prompt("Enter new name:");
     const role = prompt("Enter new role:");
@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    fetch(`/employees/${id}`, {
+    fetch(`${BASE_URL}/employees/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, role, email, phone }),

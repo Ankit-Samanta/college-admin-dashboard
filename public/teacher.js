@@ -1,10 +1,12 @@
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
 document.addEventListener("DOMContentLoaded", () => {
   loadTeachers();
   document.getElementById("add-teacher").addEventListener("click", addTeacher);
 });
 
 function loadTeachers() {
-  fetch("/teachers")
+  fetch(`${BASE_URL}/teachers`)
     .then(res => res.json())
     .then(data => {
       const tbody = document.querySelector("#teacher-table tbody");
@@ -33,7 +35,7 @@ function addTeacher() {
   const department = prompt("Enter department:");
   const password = prompt("Enter password for login:");
 
-  fetch("/teachers", {
+  fetch(`${BASE_URL}/teachers`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, email, phone, department, password })
@@ -45,7 +47,7 @@ function addTeacher() {
 }
 
 function editTeacher(id) {
-  fetch("/teachers")
+  fetch(`${BASE_URL}/teachers`)
     .then(res => res.json())
     .then(data => {
       const t = data.find(t => t.id === id);
@@ -56,7 +58,7 @@ function editTeacher(id) {
       const department = prompt("Edit department:", t.department);
       const password = prompt("Edit password (leave blank to keep unchanged):");
 
-      fetch(`/teachers/${id}`, {
+      fetch(`${BASE_URL}/teachers/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, phone, department, password })
@@ -69,7 +71,7 @@ function editTeacher(id) {
 
 function deleteTeacher(id) {
   if (confirm("Delete this teacher?")) {
-    fetch(`/teachers/${id}`, { method: "DELETE" })
+    fetch(`${BASE_URL}/teachers/${id}`, { method: "DELETE" })
       .then(() => {
         alert("Deleted.");
         loadTeachers();

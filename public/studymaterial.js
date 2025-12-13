@@ -1,10 +1,11 @@
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
 document.addEventListener("DOMContentLoaded", () => {
   const role = localStorage.getItem("role");
 
   const form = document.getElementById("studyMaterialForm");
   const fileInput = document.getElementById("materialFile");
   const uploadedByInput = document.getElementById("materialUploadedBy");
-
 
   if (role === "student" && form) {
     form.style.display = "none";
@@ -26,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
       formData.append("file", file);
       formData.append("uploaded_by", uploaded_by);
 
-      fetch("/studymaterials/upload", {
+      fetch(`${BASE_URL}/studymaterials/upload`, {
         method: "POST",
         body: formData
       })
@@ -48,7 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function loadStudyMaterials() {
-    fetch("/studymaterials")
+    fetch(`${BASE_URL}/studymaterials`)
       .then(res => res.json())
       .then(data => {
         const tableBody = document.querySelector("#studyMaterialTable tbody");
@@ -59,14 +60,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
           let actionColumn = "";
 
-
           if (role === "admin" || role === "teacher") {
-            actionColumn = `<button class="action-btn delete" onclick="deleteMaterial(${item.id})">Delete</button>`;
+            actionColumn = `
+              <button class="action-btn delete" onclick="deleteMaterial(${item.id})">
+                Delete
+              </button>`;
           }
 
           row.innerHTML = `
             <td>${item.id}</td>
-            <td><a href="/uploads/${item.filename}" target="_blank">${item.filename}</a></td>
+            <td>
+              <a href="${BASE_URL}/uploads/${item.filename}" target="_blank">
+                ${item.filename}
+              </a>
+            </td>
             <td>${item.uploaded_by}</td>
             <td>${item.upload_date}</td>
             <td>${actionColumn}</td>
@@ -78,11 +85,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.deleteMaterial = function (id) {
-    if (role === "student") return alert("Students cannot delete study materials.");
+    if (role === "student") {
+      return alert("Students cannot delete study materials.");
+    }
 
     if (!confirm("Are you sure you want to delete this file?")) return;
 
-    fetch(`/studymaterials/${id}`, {
+    fetch(`${BASE_URL}/studymaterials/${id}`, {
       method: "DELETE"
     })
       .then(res => res.json())
