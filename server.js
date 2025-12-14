@@ -663,7 +663,8 @@ app.delete("/announcements/:id", allowRoles("admin", "teacher"), (req, res) => {
 // LOGIN
 
 app.post("/login", async (req, res) => {
-  const { email, password, role } = req.body;
+  const { email, password } = req.body;
+const role = req.body.role.toLowerCase();
 
   try {
     const [rows] = await db.query(
@@ -684,7 +685,7 @@ app.post("/login", async (req, res) => {
     }
 
     // ✅ check role AFTER password
-    if (user.role !== role) {
+    if (user.role.toLowerCase() !== role) {
       return res.json({ success: false, message: "Invalid role selected" });
     }
 
