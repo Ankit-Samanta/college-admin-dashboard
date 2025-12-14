@@ -662,48 +662,44 @@ app.delete("/announcements/:id", allowRoles("admin", "teacher"), (req, res) => {
 
 // LOGIN
 
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
   const { email, password, role } = req.body;
 
-  let table, field;
+  try {
+    const [rows] = await db.query(
+      "SELECT * FROM usertable WHERE email = ?",
+      [email]
+    );
 
-  if (role === "admin") {
-    table = "usertable";
-    field = "email";
-  } else if (role === "teacher") {
-    table = "teachertable";
-    field = "email";
-  } else if (role === "student") {
-    table = "studenttable";
-    field = "email";
-  } else {
-    return res.status(400).json({ success: false, message: "Invalid role" });
-  }
-
-  const sql = `SELECT * FROM ${table} WHERE ${field} = ? LIMIT 1`;
-
-  db.query(sql, [email], (err, rows) => {
-    if (err || rows.length === 0) {
+    if (rows.length === 0) {
       return res.json({ success: false, message: "Invalid credentials" });
     }
 
     const user = rows[0];
 
-    const isMatch = bcrypt.compareSync(password, user.password);
+    // ✅ check password
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.json({ success: false, message: "Invalid credentials" });
     }
 
+    // ✅ check role AFTER password
+    if (user.role !== role) {
+      return res.json({ success: false, message: "Invalid role selected" });
+    }
+
     res.json({
       success: true,
-      role,
       user: {
         id: user.id,
-        name: user.name || user.username,
-        email: user.email
-      }
+        email: user.email,
+        role: user.role,
+      },
     });
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
 });
 
 
