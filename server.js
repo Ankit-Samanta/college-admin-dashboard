@@ -1,11 +1,10 @@
-const bcrypt = require("bcrypt");
-// Loading environment variables
 require("dotenv").config();
-
+const db = require("./db");
+const bcrypt = require("bcryptjs");
+// Loading environment variables
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
-const mysql = require("mysql2");
 const cors = require("cors");
 const multer = require("multer");
 
@@ -40,33 +39,6 @@ app.get("/", (req, res) => {
 app.get("/login.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
-
-
-// MySQL (Railway Compatible)
-const db = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  ssl: { rejectUnauthorized: false }
-});
-
-db.getConnection((err, connection) => {
-  if (err) {
-    console.error("❌ Railway MySQL pool error:", err);
-  } else {
-    console.log("✅ Connected to Railway MySQL (pool)");
-    connection.release();
-  }
-});
-
-
-
-
 
 
 // Helper functions
@@ -663,8 +635,7 @@ app.delete("/announcements/:id", allowRoles("admin", "teacher"), (req, res) => {
 // LOGIN
 
 app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-const role = req.body.role.toLowerCase();
+  const { email, password, role } = req.body;
 
   try {
     const [rows] = await db.query(
@@ -678,27 +649,18 @@ const role = req.body.role.toLowerCase();
 
     const user = rows[0];
 
-    // ✅ check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.json({ success: false, message: "Invalid credentials" });
     }
 
-    // ✅ check role AFTER password
-    if (user.role.toLowerCase() !== role) {
+    if (user.role.toLowerCase() !== role.toLowerCase()) {
       return res.json({ success: false, message: "Invalid role selected" });
     }
 
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-    });
+    res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    console.error("LOGIN ERROR:", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
