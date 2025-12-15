@@ -686,8 +686,8 @@ app.post("/login", (req, res) => {
 
 
 // START SERVER
+const PORT = process.env.PORT;
 
-const PORT = process.env.PORT || 8081;
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
 });
