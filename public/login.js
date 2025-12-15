@@ -3,7 +3,7 @@ function login() {
   const password = document.getElementById("password").value.trim();
   const role = document.getElementById("role").value;
 
-  fetch(`${BASE_URL}/login`, {
+  fetch("/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, role }),
