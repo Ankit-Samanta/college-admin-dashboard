@@ -1,5 +1,3 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 function login() { 
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
@@ -15,7 +13,7 @@ function login() {
       if (data.success) {
         localStorage.setItem("role", role);
         localStorage.setItem("email", email);
-        window.location.replace("index.html"); // redirects to dashboard
+        window.location.replace("index.html");
       } else {
         document.getElementById("error-msg").textContent =
           data.message || "Invalid credentials.";
