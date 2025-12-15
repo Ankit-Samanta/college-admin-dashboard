@@ -1,6 +1,6 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 document.addEventListener("DOMContentLoaded", () => {
+  const role = localStorage.getItem("role");
+
   loadLibrary();
 
   document.getElementById("add-book").addEventListener("click", () => {
@@ -14,7 +14,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     fetch(`${BASE_URL}/library`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-role": role
+      },
       body: JSON.stringify({ title, author, subject }),
     })
       .then(res => res.json())
@@ -28,7 +31,13 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function loadLibrary() {
-  fetch(`${BASE_URL}/library`)
+  const role = localStorage.getItem("role");
+
+  fetch(`${BASE_URL}/library`, {
+    headers: {
+      "x-role": role
+    }
+  })
     .then(res => res.json())
     .then(data => {
       const tbody = document.querySelector("#library-table tbody");
@@ -51,7 +60,13 @@ function loadLibrary() {
 }
 
 function editBook(id) {
-  fetch(`${BASE_URL}/library`)
+  const role = localStorage.getItem("role");
+
+  fetch(`${BASE_URL}/library`, {
+    headers: {
+      "x-role": role
+    }
+  })
     .then(res => res.json())
     .then(books => {
       const book = books.find(b => b.id === id);
@@ -65,7 +80,10 @@ function editBook(id) {
 
       fetch(`${BASE_URL}/library/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-role": role
+        },
         body: JSON.stringify({ title, author, subject }),
       })
         .then(res => res.json())
@@ -79,10 +97,15 @@ function editBook(id) {
 }
 
 function deleteBook(id) {
+  const role = localStorage.getItem("role");
+
   if (!confirm("Delete this book?")) return;
 
   fetch(`${BASE_URL}/library/${id}`, {
     method: "DELETE",
+    headers: {
+      "x-role": role
+    }
   })
     .then(res => res.json())
     .then(data => {

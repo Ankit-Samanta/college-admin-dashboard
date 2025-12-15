@@ -1,5 +1,3 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 function login() {
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
@@ -10,23 +8,19 @@ function login() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, role }),
   })
-    .then((res) => res.json())
-    .then((data) => {
+    .then(res => res.json())
+    .then(data => {
       if (data.success) {
-
         localStorage.setItem("role", role);
-        localStorage.setItem("user", JSON.stringify({ username: email }));
-
-        setTimeout(() => {
-          window.location.replace("index.html");
-        }, 100);
-
+        localStorage.setItem("email", email);
+        window.location.replace("index.html");
       } else {
         document.getElementById("error-msg").textContent =
-          "Invalid credentials. Please try again.";
+          data.message || "Invalid credentials.";
       }
     })
-    .catch(() => {
+    .catch(err => {
+      console.error(err);
       document.getElementById("error-msg").textContent =
         "Failed to connect to server.";
     });

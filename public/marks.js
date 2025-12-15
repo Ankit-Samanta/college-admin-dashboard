@@ -1,5 +1,3 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 document.addEventListener("DOMContentLoaded", () => {
 
   const role = localStorage.getItem("role");
@@ -14,7 +12,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let selectedYear = "";
   let selectedSubject = "";
 
-  fetch(`${BASE_URL}/departments`)
+  fetch(`${BASE_URL}/departments`, {
+    headers: { "x-role": role }
+  })
     .then(res => res.json())
     .then(data => {
       data.forEach(d => {
@@ -42,7 +42,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!selectedDepartment || !selectedYear) return;
 
-    fetch(`${BASE_URL}/courses?department=${selectedDepartment}&year=${selectedYear}`)
+    fetch(`${BASE_URL}/courses?department=${selectedDepartment}&year=${selectedYear}`, {
+      headers: { "x-role": role }
+    })
       .then(res => res.json())
       .then(subjects => {
         subjects.forEach(course => {
@@ -70,7 +72,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadMarksTable() {
     marksTableBody.innerHTML = "";
 
-    fetch(`${BASE_URL}/marks/students?department=${selectedDepartment}&year=${selectedYear}`)
+    fetch(`${BASE_URL}/marks/students?department=${selectedDepartment}&year=${selectedYear}`, {
+      headers: { "x-role": role }
+    })
       .then(res => res.json())
       .then(students => {
 
@@ -96,7 +100,9 @@ document.addEventListener("DOMContentLoaded", () => {
           marksTableBody.appendChild(row);
         });
 
-        fetch(`${BASE_URL}/marks?department=${selectedDepartment}&year=${selectedYear}&subject=${selectedSubject}`)
+        fetch(`${BASE_URL}/marks?department=${selectedDepartment}&year=${selectedYear}&subject=${selectedSubject}`, {
+          headers: { "x-role": role }
+        })
           .then(res => res.json())
           .then(existing => {
 
@@ -130,7 +136,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     fetch(`${BASE_URL}/marks`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-role": role
+      },
       body: JSON.stringify(payload),
     })
       .then(res => res.json())

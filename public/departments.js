@@ -1,11 +1,14 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 document.addEventListener("DOMContentLoaded", () => {
   const departmentTableBody = document.querySelector("#department-table tbody");
   const addDepartmentBtn = document.getElementById("add-department");
+  const role = localStorage.getItem("role");
 
   function loadDepartments() {
-    fetch(`${BASE_URL}/departments`)
+    fetch(`${BASE_URL}/departments`, {
+      headers: {
+        "x-role": role
+      }
+    })
       .then(res => res.json())
       .then(data => {
         departmentTableBody.innerHTML = "";
@@ -43,7 +46,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     fetch(`${BASE_URL}/departments`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-role": role
+      },
       body: JSON.stringify({ name, head, phone, email, strength }),
     })
       .then(res => res.json())
@@ -75,7 +81,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       fetch(`${BASE_URL}/departments/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-role": role
+        },
         body: JSON.stringify({ name, head, phone, email, strength }),
       })
         .then(res => res.json())
@@ -93,6 +102,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (confirm("Are you sure you want to delete this department?")) {
         fetch(`${BASE_URL}/departments/${id}`, {
           method: "DELETE",
+          headers: {
+            "x-role": role
+          }
         })
           .then(res => res.json())
           .then(data => {

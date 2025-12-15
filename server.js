@@ -633,38 +633,37 @@ app.delete("/announcements/:id", allowRoles("admin", "teacher"), (req, res) => {
 });
 
 // LOGIN
-
-app.post("/login", async (req, res) => {
+app.post("/login", (req, res) => {
   const { email, password, role } = req.body;
 
-  try {
-    const [rows] = await db.query(
-      "SELECT * FROM usertable WHERE email = ?",
-      [email]
-    );
+  db.query(
+    "SELECT * FROM usertable WHERE email = ?",
+    [email],
+    async (err, rows) => {
+      if (err) {
+        console.error("LOGIN ERROR:", err);
+        return res.status(500).json({ success: false, message: "Server error" });
+      }
 
-    if (rows.length === 0) {
-      return res.json({ success: false, message: "Invalid credentials" });
+      if (rows.length === 0) {
+        return res.json({ success: false, message: "Invalid credentials" });
+      }
+
+      const user = rows[0];
+
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.json({ success: false, message: "Invalid credentials" });
+      }
+
+      if (user.role.toLowerCase() !== role.toLowerCase()) {
+        return res.json({ success: false, message: "Invalid role selected" });
+      }
+
+      res.json({ success: true });
     }
-
-    const user = rows[0];
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.json({ success: false, message: "Invalid credentials" });
-    }
-
-    if (user.role.toLowerCase() !== role.toLowerCase()) {
-      return res.json({ success: false, message: "Invalid role selected" });
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("LOGIN ERROR:", err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
+  );
 });
-
 
 // START SERVER
 

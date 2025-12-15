@@ -1,5 +1,3 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 document.addEventListener("DOMContentLoaded", () => {
   const role = localStorage.getItem("role");
   console.log("🔓 Logged in as:", role);
@@ -21,10 +19,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-
-
 function loadStudentDepartments() {
-  fetch(`${BASE_URL}/departments`)
+  fetch(`${BASE_URL}/departments`, {
+    headers: { "x-role": localStorage.getItem("role") }
+  })
     .then(res => res.json())
     .then(data => {
       const dropdown = document.getElementById("student-filter-dept");
@@ -43,8 +41,6 @@ function loadStudentDepartments() {
     .catch(err => console.error("❌ Failed to load departments:", err));
 }
 
-
-
 function loadStudents() {
   const department = document.getElementById("student-filter-dept").value;
   const year = document.getElementById("student-filter-year").value;
@@ -54,7 +50,9 @@ function loadStudents() {
   if (department) url += `&department=${encodeURIComponent(department)}`;
   if (year) url += `&year=${encodeURIComponent(year)}`;
 
-  fetch(url)
+  fetch(url, {
+    headers: { "x-role": role }
+  })
     .then(res => res.json())
     .then(students => {
       const tbody = document.querySelector("#student-table tbody");
@@ -80,7 +78,6 @@ function loadStudents() {
     });
 }
 
-
 function formatYear(value) {
   switch (value) {
     case "1":
@@ -94,8 +91,6 @@ function formatYear(value) {
     default: return value;
   }
 }
-
-
 
 function addStudent() {
   const name = prompt("Enter student name:");
@@ -130,8 +125,6 @@ function addStudent() {
     });
 }
 
-
-
 function editStudent(roll) {
   const name = prompt("Enter updated name:");
   const email = prompt("Enter updated email:");
@@ -163,8 +156,6 @@ function editStudent(roll) {
       alert("Failed to update student");
     });
 }
-
-
 
 function deleteStudent(roll) {
   if (!confirm("Are you sure you want to delete this student?")) return;

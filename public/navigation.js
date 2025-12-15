@@ -1,4 +1,3 @@
-
 document.addEventListener("DOMContentLoaded", () => {
   const role = (localStorage.getItem("role") || "").toLowerCase();
   const userStr = localStorage.getItem("user");

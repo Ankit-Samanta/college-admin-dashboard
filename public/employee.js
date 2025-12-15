@@ -1,11 +1,14 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 document.addEventListener("DOMContentLoaded", () => {
   const employeeTableBody = document.querySelector("#employee-table tbody");
   const addEmployeeBtn = document.getElementById("add-employee");
+  const role = localStorage.getItem("role");
 
   function loadEmployees() {
-    fetch(`${BASE_URL}/employees`)
+    fetch(`${BASE_URL}/employees`, {
+      headers: {
+        "x-role": role
+      }
+    })
       .then((res) => res.json())
       .then((data) => {
         employeeTableBody.innerHTML = "";
@@ -28,19 +31,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   addEmployeeBtn.addEventListener("click", () => {
     const name = prompt("Enter employee name:");
-    const role = prompt("Enter employee role:");
+    const empRole = prompt("Enter employee role:");
     const email = prompt("Enter employee email:");
     const phone = prompt("Enter employee phone:");
 
-    if (!name || !role || !email || !phone) {
+    if (!name || !empRole || !email || !phone) {
       alert("All fields are required.");
       return;
     }
 
     fetch(`${BASE_URL}/employees`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, role, email, phone }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-role": role
+      },
+      body: JSON.stringify({ name, role: empRole, email, phone }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -57,6 +63,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     fetch(`${BASE_URL}/employees/${id}`, {
       method: "DELETE",
+      headers: {
+        "x-role": role
+      }
     })
       .then((res) => res.json())
       .then((data) => {
@@ -70,19 +79,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.editEmployee = function (id) {
     const name = prompt("Enter new name:");
-    const role = prompt("Enter new role:");
+    const empRole = prompt("Enter new role:");
     const email = prompt("Enter new email:");
     const phone = prompt("Enter new phone:");
 
-    if (!name || !role || !email || !phone) {
+    if (!name || !empRole || !email || !phone) {
       alert("All fields are required.");
       return;
     }
 
     fetch(`${BASE_URL}/employees/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, role, email, phone }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-role": role
+      },
+      body: JSON.stringify({ name, role: empRole, email, phone }),
     })
       .then((res) => res.json())
       .then((data) => {

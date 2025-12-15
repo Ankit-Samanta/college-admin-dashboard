@@ -1,5 +1,3 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 document.addEventListener("DOMContentLoaded", () => {
   const role = localStorage.getItem("role");
 
@@ -7,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const fileInput = document.getElementById("materialFile");
   const uploadedByInput = document.getElementById("materialUploadedBy");
 
+  // Students cannot upload
   if (role === "student" && form) {
     form.style.display = "none";
   }
@@ -14,6 +13,11 @@ document.addEventListener("DOMContentLoaded", () => {
   if (form) {
     form.addEventListener("submit", function (e) {
       e.preventDefault();
+
+      if (role === "student") {
+        alert("Students cannot upload study materials.");
+        return;
+      }
 
       const uploaded_by = uploadedByInput.value.trim();
       const file = fileInput.files[0];
@@ -29,6 +33,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       fetch(`${BASE_URL}/studymaterials/upload`, {
         method: "POST",
+        headers: {
+          "x-role": role
+        },
         body: formData
       })
         .then(res => res.json())
@@ -38,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
             form.reset();
             loadStudyMaterials();
           } else {
-            alert("Upload failed.");
+            alert(data.message || "Upload failed.");
           }
         })
         .catch(err => {
@@ -49,23 +56,28 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function loadStudyMaterials() {
-    fetch(`${BASE_URL}/studymaterials`)
+    fetch(`${BASE_URL}/studymaterials`, {
+      headers: {
+        "x-role": role
+      }
+    })
       .then(res => res.json())
       .then(data => {
         const tableBody = document.querySelector("#studyMaterialTable tbody");
         tableBody.innerHTML = "";
 
+        if (!Array.isArray(data) || data.length === 0) {
+          tableBody.innerHTML = `<tr><td colspan="5">No study materials found</td></tr>`;
+          return;
+        }
+
         data.forEach(item => {
           const row = document.createElement("tr");
 
-          let actionColumn = "";
-
-          if (role === "admin" || role === "teacher") {
-            actionColumn = `
-              <button class="action-btn delete" onclick="deleteMaterial(${item.id})">
-                Delete
-              </button>`;
-          }
+          const actionColumn =
+            role === "admin" || role === "teacher"
+              ? `<button class="action-btn delete" onclick="deleteMaterial(${item.id})">Delete</button>`
+              : "";
 
           row.innerHTML = `
             <td>${item.id}</td>
@@ -81,18 +93,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
           tableBody.appendChild(row);
         });
+      })
+      .catch(err => {
+        console.error("Load error:", err);
       });
   }
 
   window.deleteMaterial = function (id) {
     if (role === "student") {
-      return alert("Students cannot delete study materials.");
+      alert("Students cannot delete study materials.");
+      return;
     }
 
     if (!confirm("Are you sure you want to delete this file?")) return;
 
     fetch(`${BASE_URL}/studymaterials/${id}`, {
-      method: "DELETE"
+      method: "DELETE",
+      headers: {
+        "x-role": role
+      }
     })
       .then(res => res.json())
       .then(data => {
@@ -100,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
           alert("Deleted successfully.");
           loadStudyMaterials();
         } else {
-          alert("Failed to delete.");
+          alert(data.message || "Failed to delete.");
         }
       })
       .catch(err => {

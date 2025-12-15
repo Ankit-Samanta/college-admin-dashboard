@@ -1,5 +1,3 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 document.addEventListener("DOMContentLoaded", () => {
   const role = localStorage.getItem("role");
   const addBtn = document.getElementById("add-announcement");
@@ -21,7 +19,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       fetch(`${BASE_URL}/announcements`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-role": role
+        },
         body: JSON.stringify({ title, message, date })
       })
         .then(res => res.json())
@@ -87,7 +88,10 @@ function editAnnouncement(id) {
 
       fetch(`${BASE_URL}/announcements/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-role": role
+        },
         body: JSON.stringify({ title, message, date })
       })
         .then(res => res.json())
@@ -107,7 +111,10 @@ function deleteAnnouncement(id) {
   if (!confirm("Delete this announcement?")) return;
 
   fetch(`${BASE_URL}/announcements/${id}`, {
-    method: "DELETE"
+    method: "DELETE",
+    headers: {
+      "x-role": role
+    }
   })
     .then(res => res.json())
     .then(data => {

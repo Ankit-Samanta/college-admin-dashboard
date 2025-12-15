@@ -1,5 +1,3 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 document.addEventListener("DOMContentLoaded", () => {
   const courseTable = document.querySelector("#course-table tbody");
   const addBtn = document.getElementById("add-course");
@@ -33,7 +31,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function loadCourses() {
-    fetch(`${BASE_URL}/courses`)
+    fetch(`${BASE_URL}/courses`, {
+      headers: {
+        "x-role": role
+      }
+    })
       .then(res => res.json())
       .then(data => {
         courseTable.innerHTML = "";
@@ -81,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-role": localStorage.getItem("role")
+        "x-role": role
       },
       body: JSON.stringify({ name, department, year, credits })
     })
@@ -93,7 +95,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.editCourse = function (id) {
-    fetch(`${BASE_URL}/courses`)
+    fetch(`${BASE_URL}/courses`, {
+      headers: { "x-role": role }
+    })
       .then(res => res.json())
       .then(courses => {
         const course = courses.find(c => c.id === id);
@@ -103,6 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const department = prompt("Edit department:", course.department);
         let year = prompt("Edit year (1, 2, 3, 4):", course.year);
         const credits = prompt("Edit credits:", course.credits);
+
         year = formatYear(year);
 
         if (!name || !department || !year || !credits) {
@@ -114,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            "x-role": localStorage.getItem("role")
+            "x-role": role
           },
           body: JSON.stringify({ name, department, year, credits })
         })
@@ -131,7 +136,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     fetch(`${BASE_URL}/courses/${id}`, {
       method: "DELETE",
-      headers: { "x-role": localStorage.getItem("role") }
+      headers: {
+        "x-role": role
+      }
     })
       .then(res => res.json())
       .then(result => {

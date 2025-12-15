@@ -1,5 +1,3 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 document.addEventListener("DOMContentLoaded", () => {
   const sidebarLinks = document.querySelectorAll(".sidebar ul li a");
   const sections = document.querySelectorAll(".section");
@@ -32,7 +30,11 @@ document.addEventListener("DOMContentLoaded", () => {
     showSection(window.location.hash || "#dashboard");
   });
 
-  fetch(`${BASE_URL}/dashboard/counts`)
+  fetch(`${BASE_URL}/dashboard/counts`, {
+    headers: {
+      "x-role": localStorage.getItem("role")
+    }
+  })
     .then(res => res.json())
     .then(data => {
       document.getElementById("total-students").innerText = data.students || 0;

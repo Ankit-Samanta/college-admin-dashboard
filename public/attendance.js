@@ -1,5 +1,3 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 document.addEventListener("DOMContentLoaded", () => {
   const role = localStorage.getItem("role");
 
@@ -56,8 +54,12 @@ async function loadAttendanceTable() {
 
   try {
     const [studentsRes, attendanceRes] = await Promise.all([
-      fetch(`${BASE_URL}/attendance/students?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}`),
-      fetch(`${BASE_URL}/attendance?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}&date=${encodeURIComponent(date)}`)
+      fetch(
+        `${BASE_URL}/attendance/students?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}`
+      ),
+      fetch(
+        `${BASE_URL}/attendance?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}&date=${encodeURIComponent(date)}`
+      )
     ]);
 
     const students = await studentsRes.json();
@@ -157,6 +159,7 @@ function removeSaveAllButton() {
 async function saveAllAttendance(dept, year, date) {
   const tbodyRows = document.querySelectorAll("#attendance-table tbody tr");
   const btn = document.getElementById("save-all-attendance");
+  const role = localStorage.getItem("role");
 
   btn.disabled = true;
   btn.textContent = "Saving...";
@@ -190,7 +193,10 @@ async function saveAllAttendance(dept, year, date) {
   try {
     const res = await fetch(`${BASE_URL}/attendance/bulk`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-role": role
+      },
       body: JSON.stringify({ records })
     });
 
@@ -210,6 +216,12 @@ async function saveAllAttendance(dept, year, date) {
 
 function escapeHtml(text) {
   return text
-    ? text.replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]))
+    ? text.replace(/[&<>"']/g, m => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[m]))
     : "";
 }
