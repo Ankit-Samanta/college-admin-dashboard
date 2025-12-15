@@ -1,4 +1,6 @@
-function login() {
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
+function login() { 
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
   const role = document.getElementById("role").value;
@@ -13,15 +15,20 @@ function login() {
       if (data.success) {
         localStorage.setItem("role", role);
         localStorage.setItem("email", email);
-        window.location.replace("index.html");
+        window.location.replace("index.html"); // redirects to dashboard
       } else {
         document.getElementById("error-msg").textContent =
           data.message || "Invalid credentials.";
       }
     })
     .catch(err => {
-      console.error(err);
+      console.error("Login fetch error:", err);
       document.getElementById("error-msg").textContent =
         "Failed to connect to server.";
     });
 }
+
+document.getElementById("login-btn")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  login();
+});

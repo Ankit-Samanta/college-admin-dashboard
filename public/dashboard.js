@@ -1,26 +1,21 @@
+const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+
 document.addEventListener("DOMContentLoaded", () => {
   const sidebarLinks = document.querySelectorAll(".sidebar ul li a");
   const sections = document.querySelectorAll(".section");
 
   function showSection(hash) {
-    sections.forEach(section => {
-      section.classList.add("hidden");
-    });
-
+    sections.forEach(section => section.classList.add("hidden"));
     const targetSection = document.querySelector(hash);
-    if (targetSection) {
-      targetSection.classList.remove("hidden");
-    }
+    if (targetSection) targetSection.classList.remove("hidden");
   }
 
-  const initialHash = window.location.hash || "#dashboard";
-  showSection(initialHash);
+  showSection(window.location.hash || "#dashboard");
 
   sidebarLinks.forEach(link => {
-    link.addEventListener("click", (e) => {
+    link.addEventListener("click", e => {
       e.preventDefault();
       const hash = link.getAttribute("href");
-
       history.pushState(null, null, hash);
       showSection(hash);
     });
@@ -30,10 +25,9 @@ document.addEventListener("DOMContentLoaded", () => {
     showSection(window.location.hash || "#dashboard");
   });
 
+  // Dashboard counts fetch
   fetch(`${BASE_URL}/dashboard/counts`, {
-    headers: {
-      "x-role": localStorage.getItem("role")
-    }
+    headers: { "x-role": localStorage.getItem("role") }
   })
     .then(res => res.json())
     .then(data => {
