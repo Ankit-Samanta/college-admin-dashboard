@@ -65,8 +65,7 @@ function allowRoles(...roles) {
 }
 
 // DASHBOARD
-
-app.get("/dashboard/counts", (req, res) => {
+app.get("/dashboard/counts", async (req, res) => {
   const counts = {};
   const queries = [
     { key: "students", sql: "SELECT COUNT(*) AS count FROM studenttable" },
@@ -75,563 +74,708 @@ app.get("/dashboard/counts", (req, res) => {
     { key: "announcements", sql: "SELECT COUNT(*) AS count FROM announcementtable" }
   ];
 
-  let completed = 0;
-  queries.forEach(q => {
-    db.query(q.sql, (err, result) => {
-      counts[q.key] = err ? 0 : (result[0] ? result[0].count : 0);
-      completed++;
-      if (completed === queries.length) {
-        res.json(counts);
-      }
-    });
-  });
+  try {
+    for (const q of queries) {
+      const result = await db.query(q.sql);
+      counts[q.key] = result[0] ? result[0].count : 0;
+    }
+    res.json(counts);
+  } catch (err) {
+    console.error("Dashboard counts error:", err);
+    res.status(500).json({ error: "Failed to fetch counts" });
+  }
 });
-
 
 // STUDENTS
 
-app.get("/students", allowRoles("admin", "teacher"), (req, res) => {
-  const role = req.query.role || "";
-  let query = "SELECT * FROM studenttable WHERE 1=1";
-  const params = [];
+app.get("/students", allowRoles("admin", "teacher"), async (req, res) => {
+  try {
+    let query = "SELECT * FROM studenttable WHERE 1=1";
+    const params = [];
 
-  if (req.query.department) {
-    query += " AND department = ?";
-    params.push(req.query.department);
-  }
+    if (req.query.department) {
+      query += " AND department = ?";
+      params.push(req.query.department);
+    }
 
-  if (req.query.year) {
-    query += " AND year = ?";
-    params.push(req.query.year);
-  }
+    if (req.query.year) {
+      query += " AND year = ?";
+      params.push(formatYearLabel(req.query.year));
+    }
 
-  db.query(query, params, (err, results) => {
-    if (err) return res.status(500).json({ error: "Database error" });
+    const results = await db.query(query, params);
     res.json(results);
-  });
+  } catch (err) {
+    console.error("Fetch students error:", err);
+    res.status(500).json({ error: "Database error" });
+  }
 });
 
-app.post("/students", allowRoles("admin"), (req, res) => {
-
-  const { name, roll, email, department, year, password } = req.body;
-  if (!name || !roll || !email || !department || !year || !password) {
-    return res.status(400).json({ message: "All fields are required" });
-  }
-
-  const formattedYear = formatYearLabel(year);
-
-
-  const hashedPassword = bcrypt.hashSync(password, 10);
-
-  const sql = `
-    INSERT INTO studenttable 
-    (name, roll, email, department, year, password) 
-    VALUES (?, ?, ?, ?, ?, ?)
-  `;
-
-  db.query(
-    sql,
-    [name, roll, email, department, formattedYear, hashedPassword],
-    (err) => {
-      if (err) {
-        console.error("Student insert error:", err);
-        return res.status(500).json({ message: "Insert failed" });
-      }
-      res.json({ message: "Student added successfully" });
+app.post("/students", allowRoles("admin"), async (req, res) => {
+  try {
+    const { name, roll, email, department, year, password } = req.body;
+    if (!name || !roll || !email || !department || !year || !password) {
+      return res.status(400).json({ message: "All fields are required" });
     }
-  );
-});
 
-
-app.put("/students/:roll", allowRoles("admin"), (req, res) => {
-
-  const { name, email, department, year, password } = req.body;
-  if (!name || !email || !department || !year) {
-    return res.status(400).json({ message: "Missing fields" });
-  }
-
-  const formattedYear = formatYearLabel(year);
-  const fields = ["name = ?", "email = ?", "department = ?", "year = ?"];
-  const values = [name, email, department, formattedYear];
-
-  if (password && password.trim() !== "") {
-    fields.push("password = ?");
+    const formattedYear = formatYearLabel(year);
     const hashedPassword = bcrypt.hashSync(password, 10);
-    values.push(hashedPassword);
+
+    const sql = `
+      INSERT INTO studenttable 
+      (name, roll, email, department, year, password) 
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    await db.query(sql, [name, roll, email, department, formattedYear, hashedPassword]);
+    res.json({ message: "Student added successfully" });
+  } catch (err) {
+    console.error("Student insert error:", err);
+    res.status(500).json({ message: "Insert failed" });
   }
-
-  values.push(req.params.roll);
-
-  const sql = `UPDATE studenttable SET ${fields.join(", ")} WHERE roll = ?`;
-  db.query(sql, values, (err, result) => {
-    if (err || result.affectedRows === 0) {
-      return res.status(500).json({ message: "Student not found or update failed" });
-    }
-    res.json({ message: "Student updated successfully" });
-  });
 });
 
-app.delete("/students/:roll", allowRoles("admin"), (req, res) => {
+app.put("/students/:roll", allowRoles("admin"), async (req, res) => {
+  try {
+    const { name, email, department, year, password } = req.body;
+    if (!name || !email || !department || !year) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
 
-  const sql = "DELETE FROM studenttable WHERE roll = ?";
-  db.query(sql, [req.params.roll], (err, result) => {
-    if (err || result.affectedRows === 0) {
-      return res.status(500).json({ message: "Failed to delete student" });
+    const formattedYear = formatYearLabel(year);
+    const fields = ["name = ?", "email = ?", "department = ?", "year = ?"];
+    const values = [name, email, department, formattedYear];
+
+    if (password && password.trim() !== "") {
+      fields.push("password = ?");
+      const hashedPassword = bcrypt.hashSync(password, 10);
+      values.push(hashedPassword);
+    }
+
+    values.push(req.params.roll);
+    const sql = `UPDATE studenttable SET ${fields.join(", ")} WHERE roll = ?`;
+
+    const result = await db.query(sql, values);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Student not found or update failed" });
+    }
+
+    res.json({ message: "Student updated successfully" });
+  } catch (err) {
+    console.error("Student update error:", err);
+    res.status(500).json({ message: "Update failed" });
+  }
+});
+
+app.delete("/students/:roll", allowRoles("admin"), async (req, res) => {
+  try {
+    const sql = "DELETE FROM studenttable WHERE roll = ?";
+    const result = await db.query(sql, [req.params.roll]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Failed to delete student" });
     }
     res.json({ message: "Student deleted successfully" });
-  });
+  } catch (err) {
+    console.error("Student delete error:", err);
+    res.status(500).json({ message: "Delete failed" });
+  }
 });
-
-
 
 // TEACHERS
 
-app.get("/teachers", (_, res) => {
-  db.query("SELECT * FROM teachertable", (err, result) => {
-    if (err) return res.json({ error: err });
+app.get("/teachers", async (_, res) => {
+  try {
+    const result = await db.query("SELECT * FROM teachertable");
     res.json(result);
-  });
-});
-
-app.post("/teachers", allowRoles("admin"), (req, res) => {
-
-  const { name, email, phone, department, password } = req.body;
-
-  if (!name || !email || !phone || !department || !password) {
-    return res.status(400).json({ message: "All fields are required" });
+  } catch (err) {
+    console.error("Fetch teachers error:", err);
+    res.status(500).json({ error: "Database error" });
   }
-
-
-  const hashedPassword = bcrypt.hashSync(password, 10);
-
-  const sql = `
-    INSERT INTO teachertable 
-    (name, email, phone, department, password) 
-    VALUES (?, ?, ?, ?, ?)
-  `;
-
-  db.query(
-    sql,
-    [name, email, phone, department, hashedPassword],
-    (err) => {
-      if (err) {
-        console.error("Teacher insert error:", err);
-        return res.status(500).json({ error: "Insert failed" });
-      }
-      res.json({ success: true, message: "Teacher added successfully" });
-    }
-  );
 });
 
-app.put("/teachers/:id", allowRoles("admin"), (req, res) => {
+app.post("/teachers", allowRoles("admin"), async (req, res) => {
+  try {
+    const { name, email, phone, department, password } = req.body;
+    if (!name || !email || !phone || !department || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
 
-  const { name, email, phone, department, password } = req.body;
-
-  if (password && password.trim() !== "") {
     const hashedPassword = bcrypt.hashSync(password, 10);
 
-    db.query(
-      "UPDATE teachertable SET name=?, email=?, phone=?, department=?, password=? WHERE id=?",
-      [name, email, phone, department, hashedPassword, req.params.id],
-      (err) => {
-        if (err) return res.json({ error: err });
-        res.json({ success: true });
-      }
-    );
-  } else {
-    db.query(
-      "UPDATE teachertable SET name=?, email=?, phone=?, department=? WHERE id=?",
-      [name, email, phone, department, req.params.id],
-      (err) => {
-        if (err) return res.json({ error: err });
-        res.json({ success: true });
-      }
-    );
+    const sql = `
+      INSERT INTO teachertable 
+      (name, email, phone, department, password) 
+      VALUES (?, ?, ?, ?, ?)
+    `;
+
+    await db.query(sql, [name, email, phone, department, hashedPassword]);
+    res.json({ success: true, message: "Teacher added successfully" });
+  } catch (err) {
+    console.error("Teacher insert error:", err);
+    res.status(500).json({ error: "Insert failed" });
   }
 });
 
+app.put("/teachers/:id", allowRoles("admin"), async (req, res) => {
+  try {
+    const { name, email, phone, department, password } = req.body;
+    const fields = ["name = ?", "email = ?", "phone = ?", "department = ?"];
+    const values = [name, email, phone, department];
 
+    if (password && password.trim() !== "") {
+      fields.push("password = ?");
+      const hashedPassword = bcrypt.hashSync(password, 10);
+      values.push(hashedPassword);
+    }
 
-app.delete("/teachers/:id", allowRoles("admin"), (req, res) => {
+    values.push(req.params.id);
+    const sql = `UPDATE teachertable SET ${fields.join(", ")} WHERE id = ?`;
 
-  db.query("DELETE FROM teachertable WHERE id=?", [req.params.id], (err) => {
-    if (err) return res.json({ error: err });
-    res.json({ success: true });
-  });
+    const result = await db.query(sql, values);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Teacher not found or update failed" });
+    }
+
+    res.json({ success: true, message: "Teacher updated successfully" });
+  } catch (err) {
+    console.error("Teacher update error:", err);
+    res.status(500).json({ error: "Update failed" });
+  }
 });
 
+app.delete("/teachers/:id", allowRoles("admin"), async (req, res) => {
+  try {
+    const sql = "DELETE FROM teachertable WHERE id = ?";
+    const result = await db.query(sql, [req.params.id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Teacher not found or delete failed" });
+    }
+    res.json({ success: true, message: "Teacher deleted successfully" });
+  } catch (err) {
+    console.error("Teacher delete error:", err);
+    res.status(500).json({ error: "Delete failed" });
+  }
+});
 
 // EMPLOYEES
 
-app.get("/employees", (_, res) => {
-  db.query("SELECT * FROM employeetable", (err, result) => {
-    if (err) return res.json({ error: err });
+app.get("/employees", async (_, res) => {
+  try {
+    const result = await db.query("SELECT * FROM employeetable");
     res.json(result);
-  });
+  } catch (err) {
+    console.error("Fetch employees error:", err);
+    res.status(500).json({ error: "Database error" });
+  }
 });
 
-app.post("/employees", allowRoles("admin"), (req, res) => {
-  const { name, role, email, phone } = req.body;
-  db.query("INSERT INTO employeetable (name, role, email, phone) VALUES (?, ?, ?, ?)", [name, role, email, phone], (err) => {
-    if (err) return res.json({ error: err });
-    res.json({ success: true });
-  });
+app.post("/employees", allowRoles("admin"), async (req, res) => {
+  try {
+    const { name, role, email, phone } = req.body;
+    if (!name || !role || !email || !phone) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const sql = "INSERT INTO employeetable (name, role, email, phone) VALUES (?, ?, ?, ?)";
+    await db.query(sql, [name, role, email, phone]);
+    res.json({ success: true, message: "Employee added successfully" });
+  } catch (err) {
+    console.error("Insert employee error:", err);
+    res.status(500).json({ error: "Insert failed" });
+  }
 });
 
-app.put("/employees/:id", allowRoles("admin"), (req, res) => {
-  const { name, role, email, phone } = req.body;
-  db.query("UPDATE employeetable SET name=?, role=?, email=?, phone=? WHERE id=?", [name, role, email, phone, req.params.id], (err) => {
-    if (err) return res.json({ error: err });
-    res.json({ success: true });
-  });
+app.put("/employees/:id", allowRoles("admin"), async (req, res) => {
+  try {
+    const { name, role, email, phone } = req.body;
+    if (!name || !role || !email || !phone) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const sql = "UPDATE employeetable SET name=?, role=?, email=?, phone=? WHERE id=?";
+    const result = await db.query(sql, [name, role, email, phone, req.params.id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Employee not found or update failed" });
+    }
+
+    res.json({ success: true, message: "Employee updated successfully" });
+  } catch (err) {
+    console.error("Update employee error:", err);
+    res.status(500).json({ error: "Update failed" });
+  }
 });
 
-app.delete("/employees/:id", allowRoles("admin"), (req, res) => {
-  db.query("DELETE FROM employeetable WHERE id=?", [req.params.id], (err) => {
-    if (err) return res.json({ error: err });
-    res.json({ success: true });
-  });
-});
+app.delete("/employees/:id", allowRoles("admin"), async (req, res) => {
+  try {
+    const sql = "DELETE FROM employeetable WHERE id=?";
+    const result = await db.query(sql, [req.params.id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Employee not found or delete failed" });
+    }
 
+    res.json({ success: true, message: "Employee deleted successfully" });
+  } catch (err) {
+    console.error("Delete employee error:", err);
+    res.status(500).json({ error: "Delete failed" });
+  }
+});
 
 // DEPARTMENTS
 
-app.get("/departments", (req, res) => {
-  const sql = "SELECT * FROM departmenttable";
-  db.query(sql, (err, results) => {
-    if (err) {
-      console.error("Error fetching departments:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
+app.get("/departments", async (req, res) => {
+  try {
+    const results = await db.query("SELECT * FROM departmenttable");
     res.json(results);
-  });
-});
-
-app.post("/departments", allowRoles("admin"), (req, res) => {
-  const { name, head, phone, email, strength } = req.body;
-
-  if (!name || !head || !phone || !email || !strength) {
-    return res.status(400).json({ error: "All fields are required." });
+  } catch (err) {
+    console.error("Error fetching departments:", err);
+    res.status(500).json({ error: "Database error" });
   }
-
-  const sql = "INSERT INTO departmenttable (name, head, phone, email, strength) VALUES (?, ?, ?, ?, ?)";
-  db.query(sql, [name, head, phone, email, strength], (err, result) => {
-    if (err) {
-      console.error("Error adding department:", err);
-      return res.status(500).json({ error: "Database insert error" });
-    }
-    res.json({ message: "Department added successfully" });
-  });
 });
 
-app.put("/departments/:id", allowRoles("admin"), (req, res) => {
-  const id = req.params.id;
-  const { name, head, phone, email, strength } = req.body;
+app.post("/departments", allowRoles("admin"), async (req, res) => {
+  try {
+    const { name, head, phone, email, strength } = req.body;
 
-  if (!name || !head || !phone || !email || !strength) {
-    return res.status(400).json({ error: "All fields are required." });
+    if (!name || !head || !phone || !email || !strength) {
+      return res.status(400).json({ message: "All fields are required." });
+    }
+
+    const sql = "INSERT INTO departmenttable (name, head, phone, email, strength) VALUES (?, ?, ?, ?, ?)";
+    await db.query(sql, [name, head, phone, email, strength]);
+    res.json({ success: true, message: "Department added successfully" });
+  } catch (err) {
+    console.error("Error adding department:", err);
+    res.status(500).json({ error: "Database insert error" });
   }
-
-  const sql = "UPDATE departmenttable SET name = ?, head = ?, phone = ?, email = ?, strength = ? WHERE id = ?";
-  db.query(sql, [name, head, phone, email, strength, id], (err, result) => {
-    if (err) {
-      console.error("Error updating department:", err);
-      return res.status(500).json({ error: "Database update error" });
-    }
-    res.json({ message: "Department updated successfully" });
-  });
 });
 
-app.delete("/departments/:id", allowRoles("admin"), (req, res) => {
-  const id = req.params.id;
+app.put("/departments/:id", allowRoles("admin"), async (req, res) => {
+  try {
+    const { name, head, phone, email, strength } = req.body;
+    const id = req.params.id;
 
-  const sql = "DELETE FROM departmenttable WHERE id = ?";
-  db.query(sql, [id], (err, result) => {
-    if (err) {
-      console.error("Error deleting department:", err);
-      return res.status(500).json({ error: "Database delete error" });
+    if (!name || !head || !phone || !email || !strength) {
+      return res.status(400).json({ message: "All fields are required." });
     }
-    res.json({ message: "Department deleted successfully" });
-  });
+
+    const sql = "UPDATE departmenttable SET name = ?, head = ?, phone = ?, email = ?, strength = ? WHERE id = ?";
+    const result = await db.query(sql, [name, head, phone, email, strength, id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Department not found or update failed" });
+    }
+
+    res.json({ success: true, message: "Department updated successfully" });
+  } catch (err) {
+    console.error("Error updating department:", err);
+    res.status(500).json({ error: "Database update error" });
+  }
 });
 
+app.delete("/departments/:id", allowRoles("admin"), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const sql = "DELETE FROM departmenttable WHERE id = ?";
+    const result = await db.query(sql, [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Department not found or delete failed" });
+    }
+
+    res.json({ success: true, message: "Department deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting department:", err);
+    res.status(500).json({ error: "Database delete error" });
+  }
+});
 
 // COURSES
 
-app.get("/courses", (_, res) => {
-  db.query("SELECT * FROM coursetable", (err, result) => {
-    if (err) return res.json({ error: err });
-    res.json(result);
-  });
-});
-
-app.post("/courses", allowRoles("admin"), (req, res) => {
-
-  const { name, department, credits, year } = req.body;
-  if (!name || !department || !credits || !year) {
-    return res.status(400).json({ success: false, message: "Missing fields" });
+app.get("/courses", async (req, res) => {
+  try {
+    const results = await db.query("SELECT * FROM coursetable");
+    res.json(results);
+  } catch (err) {
+    console.error("Error fetching courses:", err);
+    res.status(500).json({ error: "Database error" });
   }
-
-  const formattedYear = formatYearLabel(year);
-  const sql = "INSERT INTO coursetable (name, department, credits, year) VALUES (?, ?, ?, ?)";
-  db.query(sql, [name, department, credits, formattedYear], (err) => {
-    if (err) return res.json({ success: false, error: err });
-    res.json({ success: true });
-  });
 });
 
-app.put("/courses/:id", allowRoles("admin"), (req, res) => {
+app.post("/courses", allowRoles("admin"), async (req, res) => {
+  try {
+    const { name, department, credits, year } = req.body;
+    if (!name || !department || !credits || !year) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
 
-  const { name, department, credits, year } = req.body;
-  if (!name || !department || !credits || !year) {
-    return res.status(400).json({ success: false, message: "Missing fields" });
+    const formattedYear = formatYearLabel(year);
+    const sql = "INSERT INTO coursetable (name, department, credits, year) VALUES (?, ?, ?, ?)";
+    await db.query(sql, [name, department, credits, formattedYear]);
+    res.json({ success: true, message: "Course added successfully" });
+  } catch (err) {
+    console.error("Error adding course:", err);
+    res.status(500).json({ success: false, error: "Database insert error" });
   }
-
-  const formattedYear = formatYearLabel(year);
-  const sql = "UPDATE coursetable SET name=?, department=?, credits=?, year=? WHERE id=?";
-  db.query(sql, [name, department, credits, formattedYear, req.params.id], (err) => {
-    if (err) return res.json({ success: false, error: err });
-    res.json({ success: true });
-  });
 });
 
-app.delete("/courses/:id", allowRoles("admin"), (req, res) => {
+app.put("/courses/:id", allowRoles("admin"), async (req, res) => {
+  try {
+    const { name, department, credits, year } = req.body;
+    if (!name || !department || !credits || !year) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
 
-  const sql = "DELETE FROM coursetable WHERE id=?";
-  db.query(sql, [req.params.id], (err) => {
-    if (err) return res.json({ success: false, error: err });
-    res.json({ success: true });
-  });
+    const formattedYear = formatYearLabel(year);
+    const sql = "UPDATE coursetable SET name=?, department=?, credits=?, year=? WHERE id=?";
+    const result = await db.query(sql, [name, department, credits, formattedYear, req.params.id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Course not found or update failed" });
+    }
+
+    res.json({ success: true, message: "Course updated successfully" });
+  } catch (err) {
+    console.error("Error updating course:", err);
+    res.status(500).json({ success: false, error: "Database update error" });
+  }
 });
 
+app.delete("/courses/:id", allowRoles("admin"), async (req, res) => {
+  try {
+    const sql = "DELETE FROM coursetable WHERE id=?";
+    const result = await db.query(sql, [req.params.id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Course not found or delete failed" });
+    }
+
+    res.json({ success: true, message: "Course deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting course:", err);
+    res.status(500).json({ success: false, error: "Database delete error" });
+  }
+});
 
 // STUDY MATERIALS
 
-app.get("/studymaterials", (req, res) => {
-  db.query("SELECT * FROM studymaterialtable", (err, result) => {
-    if (err) {
-      console.error("Fetch error:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    res.json(result);
-  });
-});
-
-app.post("/studymaterials/upload", allowRoles("admin", "teacher"), upload.single("file"), (req, res) => {
-  const uploaded_by = req.headers["x-role"];
-  if (!req.file) {
-    return res.status(400).json({ error: "No file uploaded" });
+// Get all study materials
+app.get("/studymaterials", allowRoles("admin", "teacher", "student"), async (req, res) => {
+  try {
+    const results = await db.query("SELECT * FROM studymaterialtable");
+    res.json({ success: true, data: results });
+  } catch (err) {
+    console.error("Error fetching study materials:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch study materials" });
   }
-
-  const filename = req.file.filename;
-  const upload_date = new Date().toISOString().split("T")[0];
-
-  db.query("INSERT INTO studymaterialtable (filename, uploaded_by, upload_date) VALUES (?, ?, ?)",
-    [filename, uploaded_by, upload_date],
-    (err, result) => {
-      if (err) {
-        console.error("Insert error:", err);
-        return res.status(500).json({ error: "Upload failed" });
-      }
-      res.json({ success: true, id: result.insertId });
-    }
-  );
 });
 
-app.delete("/studymaterials/:id", allowRoles("admin", "teacher"), (req, res) => {
-  const id = req.params.id;
-
-  db.query("SELECT filename FROM studymaterialtable WHERE id = ?", [id], (err, result) => {
-    if (err || result.length === 0) {
-      return res.status(500).json({ error: "File not found in DB" });
+// Upload a new study material (PDF/file)
+app.post("/studymaterials/upload", allowRoles("admin", "teacher"), upload.single("file"), async (req, res) => {
+  try {
+    const uploaded_by = req.headers["x-role"];
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
     }
 
-    const filePath = path.join(uploadsDir, result[0].filename);
+    const filename = req.file.filename;
+    const upload_date = new Date().toISOString().split("T")[0];
+
+    const sql = "INSERT INTO studymaterialtable (filename, uploaded_by, upload_date) VALUES (?, ?, ?)";
+    const result = await db.query(sql, [filename, uploaded_by, upload_date]);
+
+    res.json({ success: true, message: "File uploaded successfully", id: result.insertId });
+  } catch (err) {
+    console.error("Error uploading study material:", err);
+    res.status(500).json({ success: false, error: "Upload failed" });
+  }
+});
+
+// Delete a study material
+app.delete("/studymaterials/:id", allowRoles("admin", "teacher"), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const [rows] = await db.query("SELECT filename FROM studymaterialtable WHERE id = ?", [id]);
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ success: false, message: "File not found in DB" });
+    }
+
+    const filePath = path.join(uploadsDir, rows[0].filename);
 
     fs.unlink(filePath, (fsErr) => {
-      if (fsErr) console.warn("Failed to delete file:", fsErr.message);
+      if (fsErr) console.warn("Failed to delete file from filesystem:", fsErr.message);
     });
 
-    db.query("DELETE FROM studymaterialtable WHERE id = ?", [id], (delErr) => {
-      if (delErr) return res.status(500).json({ error: "DB delete failed" });
-      res.json({ success: true });
-    });
-  });
+    await db.query("DELETE FROM studymaterialtable WHERE id = ?", [id]);
+    res.json({ success: true, message: "Study material deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting study material:", err);
+    res.status(500).json({ success: false, error: "Failed to delete study material" });
+  }
 });
-
 
 // LIBRARY
-app.get("/library", (_, res) => {
-  db.query("SELECT * FROM librarytable", (err, result) => {
-    if (err) return res.json({ error: err });
-    res.json(result);
-  });
+
+// Get all books
+app.get("/library", allowRoles("admin", "teacher", "student"), async (req, res) => {
+  try {
+    const results = await db.query("SELECT * FROM librarytable");
+    res.json({ success: true, data: results });
+  } catch (err) {
+    console.error("Error fetching library records:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch library records" });
+  }
 });
 
-app.post("/library", allowRoles("admin"), (req, res) => {
-  const { title, author, subject } = req.body;
-  db.query("INSERT INTO librarytable (title, author, subject) VALUES (?, ?, ?)", [title, author, subject], (err) => {
-    if (err) return res.json({ error: err });
-    res.json({ success: true });
-  });
+// Add a new book
+app.post("/library", allowRoles("admin"), async (req, res) => {
+  try {
+    const { title, author, subject } = req.body;
+    if (!title || !author || !subject) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    const sql = "INSERT INTO librarytable (title, author, subject) VALUES (?, ?, ?)";
+    await db.query(sql, [title, author, subject]);
+    res.json({ success: true, message: "Book added successfully" });
+  } catch (err) {
+    console.error("Error adding book:", err);
+    res.status(500).json({ success: false, error: "Failed to add book" });
+  }
 });
 
-app.put("/library/:id", allowRoles("admin"), (req, res) => {
-  const { title, author, subject } = req.body;
+// Update a book
+app.put("/library/:id", allowRoles("admin"), async (req, res) => {
+  try {
+    const { title, author, subject } = req.body;
+    if (!title || !author || !subject) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
 
-  const sql = `
-    UPDATE librarytable
-    SET title = ?, author = ?, subject = ?
-    WHERE id = ?
-  `;
+    const sql = "UPDATE librarytable SET title = ?, author = ?, subject = ? WHERE id = ?";
+    const result = await db.query(sql, [title, author, subject, req.params.id]);
 
-  db.query(sql, [title, author, subject, req.params.id], (err, result) => {
-    if (err) return res.status(500).json({ error: err });
+    if (!result.affectedRows) {
+      return res.status(404).json({ success: false, message: "Book not found" });
+    }
+
     res.json({ success: true, message: "Book updated successfully" });
-  });
+  } catch (err) {
+    console.error("Error updating book:", err);
+    res.status(500).json({ success: false, error: "Failed to update book" });
+  }
 });
 
-app.delete("/library/:id", allowRoles("admin"), (req, res) => {
-  db.query("DELETE FROM librarytable WHERE id=?", [req.params.id], (err) => {
-    if (err) return res.json({ error: err });
-    res.json({ success: true });
-  });
-});
+// Delete a book
+app.delete("/library/:id", allowRoles("admin"), async (req, res) => {
+  try {
+    const sql = "DELETE FROM librarytable WHERE id = ?";
+    const result = await db.query(sql, [req.params.id]);
 
+    if (!result.affectedRows) {
+      return res.status(404).json({ success: false, message: "Book not found" });
+    }
+
+    res.json({ success: true, message: "Book deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting book:", err);
+    res.status(500).json({ success: false, error: "Failed to delete book" });
+  }
+});
 
 // MARKS
 
-app.get("/marks", (req, res) => {
-  const { department, year, subject } = req.query;
+// Fetch marks with optional filters
+app.get("/marks", allowRoles("admin", "teacher", "student"), async (req, res) => {
+  try {
+    const { department, year, subject } = req.query;
+    let sql = "SELECT * FROM markstable WHERE 1=1";
+    const params = [];
 
-  let sql = "SELECT * FROM markstable WHERE 1=1";
-  const params = [];
+    if (department) { sql += " AND department = ?"; params.push(department); }
+    if (year) { sql += " AND year = ?"; params.push(year); }
+    if (subject) { sql += " AND subject = ?"; params.push(subject); }
 
-  if (department) {
-    sql += " AND department = ?";
-    params.push(department);
+    const result = await db.query(sql, params);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error("Error fetching marks:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch marks" });
   }
-  if (year) {
-    sql += " AND year = ?";
-    params.push(year);
+});
+
+// Fetch students based on department & year
+app.get("/marks/students", allowRoles("admin", "teacher"), async (req, res) => {
+  try {
+    const { department, year } = req.query;
+    if (!department || !year) return res.json({ success: true, data: [] });
+
+    const sql = "SELECT name, department, year FROM studenttable WHERE department=? AND TRIM(LOWER(year)) = LOWER(TRIM(?))";
+    const result = await db.query(sql, [department, year]);
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error("Error fetching students for marks:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch students" });
   }
-  if (subject) {
-    sql += " AND subject = ?";
-    params.push(subject);
+});
+
+// Add or update marks (Admin/Teacher only)
+app.post("/marks", allowRoles("admin", "teacher"), async (req, res) => {
+  try {
+    const { student_name, subject, marks, department, year } = req.body;
+
+    if (!student_name || !subject || marks == null || !department || !year) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    const sql = `
+      INSERT INTO markstable (student_name, subject, marks, department, year)
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE marks = VALUES(marks)
+    `;
+    await db.query(sql, [student_name, subject, marks, department, year]);
+
+    res.json({ success: true, message: "Marks saved successfully" });
+  } catch (err) {
+    console.error("Error saving marks:", err);
+    res.status(500).json({ success: false, error: "Failed to save marks" });
   }
-
-  db.query(sql, params, (err, result) => {
-    if (err) return res.status(500).json({ error: "Failed to fetch marks" });
-    res.json(result);
-  });
 });
 
-app.get("/marks/students", (req, res) => {
-  const { department, year } = req.query;
+// ATTENDANCE
 
-  db.query("SELECT name, department, year FROM studenttable WHERE department = ? AND year = ?", [department, year], (err, result) => {
-    if (err) return res.status(500).json({ error: "Failed to fetch students" });
-    res.json(result);
-  });
+// Fetch attendance records with optional filters
+app.get("/attendance", allowRoles("admin", "teacher", "student"), async (req, res) => {
+  try {
+    const { department, year, date } = req.query;
+    let sql = "SELECT * FROM attendancetable WHERE 1=1";
+    const params = [];
+
+    if (department) { sql += " AND department=?"; params.push(department); }
+    if (year) { sql += " AND year=?"; params.push(year); }
+    if (date) { sql += " AND date=?"; params.push(date); }
+
+    const result = await db.query(sql, params);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error("Error fetching attendance:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch attendance" });
+  }
 });
 
-app.post("/marks", allowRoles("admin", "teacher"), (req, res) => {
-  const { student_name, subject, marks, department, year } = req.body;
+// Fetch students based on department & year
+app.get("/attendance/students", allowRoles("admin", "teacher"), async (req, res) => {
+  try {
+    const { department, year } = req.query;
+    if (!department || !year) return res.json({ success: true, data: [] });
 
-  const sql = `
-    INSERT INTO markstable (student_name, subject, marks, department, year)
-    VALUES (?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE marks = VALUES(marks)
-  `;
+    const sql = "SELECT id, name FROM studenttable WHERE department=? AND TRIM(LOWER(year)) = LOWER(TRIM(?))";
+    const result = await db.query(sql, [department, year]);
 
-  db.query(sql, [student_name, subject, marks, department, year], (err) => {
-    if (err) return res.status(500).json({ error: "Failed to save mark" });
-    res.json({ message: "Marks saved successfully" });
-  });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error("Error fetching students for attendance:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch students" });
+  }
 });
 
+// Bulk add/update attendance (Admin/Teacher only)
+app.post("/attendance/bulk", allowRoles("admin", "teacher"), async (req, res) => {
+  try {
+    const { records } = req.body;
+    if (!records || !records.length) return res.status(400).json({ success: false, message: "No records to save" });
 
-// Fetching attendance records (by department/year/date)
-app.get("/attendance", (req, res) => {
-  const { department, year, date } = req.query;
+    const values = records.map(r => [r.student_id, r.student_name, r.department, r.year, r.date, r.status]);
 
-  let sql = "SELECT * FROM attendancetable WHERE 1=1";
-  const params = [];
+    const sql = `
+      INSERT INTO attendancetable (student_id, student_name, department, year, date, status)
+      VALUES ?
+      ON DUPLICATE KEY UPDATE status=VALUES(status)
+    `;
+    await db.query(sql, [values]);
 
-  if (department) { sql += " AND department=?"; params.push(department); }
-  if (year) { sql += " AND year=?"; params.push(year); }
-  if (date) { sql += " AND date=?"; params.push(date); }
-
-  db.query(sql, params, (err, result) => {
-    if (err) return res.status(500).json({ error: "Failed to fetch attendance" });
-    res.json(result);
-  });
-});
-
-app.get("/attendance/students", (req, res) => {
-  const { department, year } = req.query;
-  if (!department || !year) return res.json([]);
-
-  const sql = "SELECT id, name FROM studenttable WHERE department=? AND TRIM(LOWER(year)) = LOWER(TRIM(?))";
-
-  db.query(sql, [department, year], (err, result) => {
-    if (err) return res.status(500).json({ error: "Failed to fetch students" });
-    res.json(result);
-  });
-});
-
-
-app.post("/attendance/bulk", allowRoles("admin", "teacher"), (req, res) => {
-  const { records } = req.body;
-  if (!records || !records.length) return res.status(400).json({ message: "No records to save" });
-
-  const values = records.map(r => [r.student_id, r.student_name, r.department, r.year, r.date, r.status]);
-
-  const sql = `
-    INSERT INTO attendancetable (student_id, student_name, department, year, date, status)
-    VALUES ?
-    ON DUPLICATE KEY UPDATE status=VALUES(status)
-  `;
-
-  db.query(sql, [values], (err) => {
-    if (err) return res.status(500).json({ error: "Failed to save attendance" });
-    res.json({ success: true });
-  });
+    res.json({ success: true, message: "Attendance records saved successfully" });
+  } catch (err) {
+    console.error("Error saving attendance:", err);
+    res.status(500).json({ success: false, error: "Failed to save attendance" });
+  }
 });
 
 
 // ANNOUNCEMENTS
 
-app.get("/announcements", (_, res) => {
-  db.query("SELECT * FROM announcementtable", (err, result) => {
-    if (err) return res.json({ error: err });
-    res.json(result);
-  });
+// Fetch all announcements
+app.get("/announcements", allowRoles("admin", "teacher", "student"), async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM announcementtable ORDER BY date DESC");
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error("Error fetching announcements:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch announcements" });
+  }
 });
 
-app.post("/announcements", allowRoles("admin", "teacher"), (req, res) => {
-  const { title, message, date } = req.body;
-  db.query("INSERT INTO announcementtable (title, message, date) VALUES (?, ?, ?)", [title, message, date], (err) => {
-    if (err) return res.json({ error: err });
-    res.json({ success: true });
-  });
+// Add a new announcement (Admin/Teacher)
+app.post("/announcements", allowRoles("admin", "teacher"), async (req, res) => {
+  try {
+    const { title, message, date } = req.body;
+    if (!title || !message || !date) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    await db.query(
+      "INSERT INTO announcementtable (title, message, date) VALUES (?, ?, ?)",
+      [title, message, date]
+    );
+    res.json({ success: true, message: "Announcement added successfully" });
+  } catch (err) {
+    console.error("Error adding announcement:", err);
+    res.status(500).json({ success: false, error: "Failed to add announcement" });
+  }
 });
 
-app.put("/announcements/:id", allowRoles("admin", "teacher"), (req, res) => {
-  const { title, message, date } = req.body;
-  db.query("UPDATE announcementtable SET title=?, message=?, date=? WHERE id=?", [title, message, date, req.params.id], (err) => {
-    if (err) return res.json({ error: err });
-    res.json({ success: true });
-  });
+// Update an existing announcement (Admin/Teacher)
+app.put("/announcements/:id", allowRoles("admin", "teacher"), async (req, res) => {
+  try {
+    const { title, message, date } = req.body;
+    if (!title || !message || !date) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    const result = await db.query(
+      "UPDATE announcementtable SET title=?, message=?, date=? WHERE id=?",
+      [title, message, date, req.params.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Announcement not found" });
+    }
+
+    res.json({ success: true, message: "Announcement updated successfully" });
+  } catch (err) {
+    console.error("Error updating announcement:", err);
+    res.status(500).json({ success: false, error: "Failed to update announcement" });
+  }
 });
 
-app.delete("/announcements/:id", allowRoles("admin", "teacher"), (req, res) => {
-  db.query("DELETE FROM announcementtable WHERE id=?", [req.params.id], (err) => {
-    if (err) return res.json({ error: err });
-    res.json({ success: true });
-  });
+// Delete an announcement (Admin/Teacher)
+app.delete("/announcements/:id", allowRoles("admin", "teacher"), async (req, res) => {
+  try {
+    const result = await db.query("DELETE FROM announcementtable WHERE id=?", [req.params.id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Announcement not found" });
+    }
+
+    res.json({ success: true, message: "Announcement deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting announcement:", err);
+    res.status(500).json({ success: false, error: "Failed to delete announcement" });
+  }
 });
 
+//login routes
 app.post("/login", async (req, res) => {
   const { email, password, role } = req.body;
 
@@ -648,8 +792,19 @@ app.post("/login", async (req, res) => {
     }
 
     const user = rows[0];
+    console.log("DB USER:", {
+      email: user.email,
+      role: user.role,
+      hash: user.password
+    });
 
+    console.log("INPUT:", {
+      email,
+      role,
+      password
+    });
     const isMatch = bcrypt.compareSync(password, user.password);
+    console.log("BCRYPT MATCH:", isMatch);
     if (!isMatch) {
       return res.json({ success: false, message: "Invalid credentials" });
     }
