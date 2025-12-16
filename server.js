@@ -632,51 +632,47 @@ app.delete("/announcements/:id", allowRoles("admin", "teacher"), (req, res) => {
   });
 });
 
-// LOGIN
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
   const { email, password, role } = req.body;
 
   console.log("LOGIN HIT:", email, role);
 
-  db.query(
-    "SELECT * FROM usertable WHERE email = ?",
-    [email],
-    (err, rows) => {
-      if (err) {
-        console.error("LOGIN DB ERROR:", err);
-        return res.status(500).json({ success: false, message: "Server error" });
-      }
+  try {
+    const [rows] = await db.query(
+      "SELECT * FROM usertable WHERE email = ?",
+      [email]
+    );
 
-      if (!rows || rows.length === 0) {
-        return res.json({ success: false, message: "Invalid credentials" });
-      }
-
-      const user = rows[0];
-
-      if (!user.password) {
-        return res.json({ success: false, message: "Password not set" });
-      }
-
-      const isMatch = bcrypt.compareSync(password, user.password);
-      if (!isMatch) {
-        return res.json({ success: false, message: "Invalid credentials" });
-      }
-
-      if (user.role.toLowerCase() !== role.toLowerCase()) {
-        return res.json({ success: false, message: "Invalid role selected" });
-      }
-
-      return res.json({
-        success: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role
-        }
-      });
+    if (!rows || rows.length === 0) {
+      return res.json({ success: false, message: "Invalid credentials" });
     }
-  );
+
+    const user = rows[0];
+
+    const isMatch = bcrypt.compareSync(password, user.password);
+    if (!isMatch) {
+      return res.json({ success: false, message: "Invalid credentials" });
+    }
+
+    if (user.role.toLowerCase() !== role.toLowerCase()) {
+      return res.json({ success: false, message: "Invalid role selected" });
+    }
+
+    return res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role
+      }
+    });
+
+  } catch (err) {
+    console.error("LOGIN ERROR:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
 });
+
 
 
 // START SERVER
