@@ -636,50 +636,44 @@ app.delete("/announcements/:id", allowRoles("admin", "teacher"), (req, res) => {
 app.post("/login", (req, res) => {
   const { email, password, role } = req.body;
 
-  console.log("LOGIN HIT:", email, role); 
+  console.log("LOGIN HIT:", email, role);
 
   db.query(
     "SELECT * FROM usertable WHERE email = ?",
     [email],
-    async (err, rows) => {
-      try {
-        if (err) {
-          console.error("LOGIN DB ERROR:", err);
-          return res.status(500).json({ success: false, message: "Server error" });
-        }
-
-        if (!rows || rows.length === 0) {
-          return res.json({ success: false, message: "Invalid credentials" });
-        }
-
-        const user = rows[0];
-
-        if (!user.password) {
-          return res.json({ success: false, message: "Password not set for user" });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-          return res.json({ success: false, message: "Invalid credentials" });
-        }
-
-        if (user.role.toLowerCase() !== role.toLowerCase()) {
-          return res.json({ success: false, message: "Invalid role selected" });
-        }
-
-        return res.json({
-          success: true,
-          user: {
-            id: user.id,
-            email: user.email,
-            role: user.role
-          }
-        });
-
-      } catch (e) {
-        console.error("LOGIN BCRYPT ERROR:", e);
-        return res.status(500).json({ success: false, message: "Login failed" });
+    (err, rows) => {
+      if (err) {
+        console.error("LOGIN DB ERROR:", err);
+        return res.status(500).json({ success: false, message: "Server error" });
       }
+
+      if (!rows || rows.length === 0) {
+        return res.json({ success: false, message: "Invalid credentials" });
+      }
+
+      const user = rows[0];
+
+      if (!user.password) {
+        return res.json({ success: false, message: "Password not set" });
+      }
+
+      const isMatch = bcrypt.compareSync(password, user.password);
+      if (!isMatch) {
+        return res.json({ success: false, message: "Invalid credentials" });
+      }
+
+      if (user.role.toLowerCase() !== role.toLowerCase()) {
+        return res.json({ success: false, message: "Invalid role selected" });
+      }
+
+      return res.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role
+        }
+      });
     }
   );
 });
