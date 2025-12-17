@@ -32,26 +32,22 @@ function loadDepartments() {
     headers: { "x-role": localStorage.getItem("role") }
   })
     .then(res => res.json())
-    .then(depts => {
+    .then(res => {
       const filter = document.getElementById("student-filter-dept");
-
       filter.innerHTML = `<option value="">All Departments</option>`;
 
-      if (!Array.isArray(depts)) {
-        console.error("Departments API error:", depts);
-        return;
-      }
-
+      // Handle both array or object with data
+      const depts = Array.isArray(res) ? res : res.data || [];
       depts.forEach(d => {
-        if (!d.name) return;
-        filter.innerHTML += `<option value="${d.name}">${d.name}</option>`;
+        if (d.name) {
+          filter.innerHTML += `<option value="${d.name}">${d.name}</option>`;
+        }
       });
     })
     .catch(err => {
       console.error("Failed to load departments:", err);
     });
 }
-
 
 /* ================= LOAD STUDENTS ================= */
 function loadStudents() {

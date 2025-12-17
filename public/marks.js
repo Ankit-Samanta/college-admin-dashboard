@@ -95,13 +95,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     STUDENTS.forEach(s => {
       const markRow = MARKS.find(
-        m => m.student_name === s.name && m.subject === subjectFilter.value
+        m => m.student_name === s.student_name && m.subject === subjectFilter.value
       );
 
       const tr = document.createElement("tr");
 
       tr.innerHTML = `
-        <td>${s.name}</td>
+        <td>${s.student_name}</td>
         <td>${subjectFilter.value}</td>
         <td contenteditable="${role !== 'student'}">
           ${markRow ? markRow.marks : ""}
