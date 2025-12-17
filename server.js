@@ -639,20 +639,29 @@ app.delete("/courses/:id", allowRoles("admin"), async (req, res) => {
   }
 });
 
-// STUDY MATERIALS
+// ================= STUDY MATERIALS =================
 
 // GET ALL STUDY MATERIALS
-app.get("/studymaterials", allowRoles("admin", "teacher", "student"), async (req, res) => {
-  try {
-    const results = await db.query("SELECT * FROM studymaterialtable");
+app.get(
+  "/studymaterials",
+  allowRoles("admin", "teacher", "student"),
+  async (req, res) => {
+    try {
+      // ✅ FIX: destructure rows
+      const [rows] = await db.query(
+        "SELECT * FROM studymaterialtable ORDER BY upload_date DESC"
+      );
 
-    // IMPORTANT: return array directly
-    res.json(results);
-  } catch (err) {
-    console.error("Fetch study materials error:", err);
-    res.status(500).json({ message: "Failed to fetch study materials" });
+      res.json({ success: true, data: rows });
+    } catch (err) {
+      console.error("Fetch study materials error:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch study materials"
+      });
+    }
   }
-});
+);
 
 
 // UPLOAD STUDY MATERIAL
@@ -665,141 +674,231 @@ app.post(
       const uploaded_by = req.headers["x-role"];
 
       if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
+        return res
+          .status(400)
+          .json({ success: false, message: "No file uploaded" });
       }
 
       const filename = req.file.filename;
       const upload_date = new Date().toISOString().split("T")[0];
 
-      const result = await db.query(
-        "INSERT INTO studymaterialtable (filename, uploaded_by, upload_date) VALUES (?, ?, ?)",
+      // ✅ FIX: destructure result
+      const [result] = await db.query(
+        `
+        INSERT INTO studymaterialtable
+        (filename, uploaded_by, upload_date)
+        VALUES (?, ?, ?)
+        `,
         [filename, uploaded_by, upload_date]
       );
 
       res.json({
+        success: true,
         message: "File uploaded successfully",
         id: result.insertId
       });
     } catch (err) {
       console.error("Upload study material error:", err);
-      res.status(500).json({ message: "Upload failed" });
+      res.status(500).json({
+        success: false,
+        error: "Upload failed"
+      });
     }
   }
 );
 
 
 // DELETE STUDY MATERIAL
-app.delete("/studymaterials/:id", allowRoles("admin", "teacher"), async (req, res) => {
-  try {
-    const id = req.params.id;
+app.delete(
+  "/studymaterials/:id",
+  allowRoles("admin", "teacher"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
 
-    const rows = await db.query(
-      "SELECT filename FROM studymaterialtable WHERE id=?",
-      [id]
-    );
+      // ✅ FIX: destructure rows
+      const [rows] = await db.query(
+        "SELECT filename FROM studymaterialtable WHERE id = ?",
+        [id]
+      );
 
-    if (!rows || rows.length === 0) {
-      return res.status(404).json({ message: "File not found" });
+      if (!rows.length) {
+        return res
+          .status(404)
+          .json({ success: false, message: "File not found" });
+      }
+
+      const filePath = path.join(uploadsDir, rows[0].filename);
+
+      // Delete file (non-blocking)
+      fs.unlink(filePath, err => {
+        if (err) console.warn("File delete warning:", err.message);
+      });
+
+      await db.query(
+        "DELETE FROM studymaterialtable WHERE id = ?",
+        [id]
+      );
+
+      res.json({
+        success: true,
+        message: "Study material deleted successfully"
+      });
+    } catch (err) {
+      console.error("Delete study material error:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete study material"
+      });
     }
-
-    const filePath = path.join(uploadsDir, rows[0].filename);
-
-    // Delete file (non-blocking)
-    fs.unlink(filePath, err => {
-      if (err) console.warn("File delete warning:", err.message);
-    });
-
-    await db.query("DELETE FROM studymaterialtable WHERE id=?", [id]);
-
-    res.json({ message: "Study material deleted successfully" });
-  } catch (err) {
-    console.error("Delete study material error:", err);
-    res.status(500).json({ message: "Failed to delete study material" });
   }
-});
+);
 
-// LIBRARY
+// ================= LIBRARY =================
 
 // GET ALL BOOKS
-app.get("/library", allowRoles("admin", "teacher", "student"), async (req, res) => {
-  try {
-    const results = await db.query("SELECT * FROM librarytable");
+app.get(
+  "/library",
+  allowRoles("admin", "teacher", "student"),
+  async (req, res) => {
+    try {
+      // ✅ FIX: destructure rows
+      const [rows] = await db.query(
+        "SELECT * FROM librarytable ORDER BY id DESC"
+      );
 
-    // IMPORTANT: return array directly
-    res.json(results);
-  } catch (err) {
-    console.error("Fetch library error:", err);
-    res.status(500).json({ message: "Failed to fetch library records" });
+      res.json({ success: true, data: rows });
+    } catch (err) {
+      console.error("Fetch library error:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch library records"
+      });
+    }
   }
-});
+);
 
 
 // ADD BOOK
-app.post("/library", allowRoles("admin"), async (req, res) => {
-  try {
-    const { title, author, subject } = req.body;
+app.post(
+  "/library",
+  allowRoles("admin"),
+  async (req, res) => {
+    try {
+      const { title, author, subject } = req.body;
 
-    if (!title || !author || !subject) {
-      return res.status(400).json({ message: "All fields are required" });
+      if (!title || !author || !subject) {
+        return res.status(400).json({
+          success: false,
+          message: "All fields are required"
+        });
+      }
+
+      // ✅ FIX: destructure result
+      const [result] = await db.query(
+        `
+        INSERT INTO librarytable (title, author, subject)
+        VALUES (?, ?, ?)
+        `,
+        [title, author, subject]
+      );
+
+      res.json({
+        success: true,
+        message: "Book added successfully",
+        id: result.insertId
+      });
+    } catch (err) {
+      console.error("Add book error:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to add book"
+      });
     }
-
-    await db.query(
-      "INSERT INTO librarytable (title, author, subject) VALUES (?, ?, ?)",
-      [title, author, subject]
-    );
-
-    res.json({ message: "Book added successfully" });
-  } catch (err) {
-    console.error("Add book error:", err);
-    res.status(500).json({ message: "Failed to add book" });
   }
-});
+);
 
 
 // UPDATE BOOK
-app.put("/library/:id", allowRoles("admin"), async (req, res) => {
-  try {
-    const { title, author, subject } = req.body;
+app.put(
+  "/library/:id",
+  allowRoles("admin"),
+  async (req, res) => {
+    try {
+      const { title, author, subject } = req.body;
 
-    if (!title || !author || !subject) {
-      return res.status(400).json({ message: "All fields are required" });
+      if (!title || !author || !subject) {
+        return res.status(400).json({
+          success: false,
+          message: "All fields are required"
+        });
+      }
+
+      // ✅ FIX: destructure result
+      const [result] = await db.query(
+        `
+        UPDATE librarytable
+        SET title = ?, author = ?, subject = ?
+        WHERE id = ?
+        `,
+        [title, author, subject, req.params.id]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Book not found"
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Book updated successfully"
+      });
+    } catch (err) {
+      console.error("Update book error:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to update book"
+      });
     }
-
-    const result = await db.query(
-      "UPDATE librarytable SET title=?, author=?, subject=? WHERE id=?",
-      [title, author, subject, req.params.id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Book not found" });
-    }
-
-    res.json({ message: "Book updated successfully" });
-  } catch (err) {
-    console.error("Update book error:", err);
-    res.status(500).json({ message: "Failed to update book" });
   }
-});
+);
 
 
 // DELETE BOOK
-app.delete("/library/:id", allowRoles("admin"), async (req, res) => {
-  try {
-    const result = await db.query(
-      "DELETE FROM librarytable WHERE id=?",
-      [req.params.id]
-    );
+app.delete(
+  "/library/:id",
+  allowRoles("admin"),
+  async (req, res) => {
+    try {
+      // ✅ FIX: destructure result
+      const [result] = await db.query(
+        "DELETE FROM librarytable WHERE id = ?",
+        [req.params.id]
+      );
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Book not found" });
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Book not found"
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Book deleted successfully"
+      });
+    } catch (err) {
+      console.error("Delete book error:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete book"
+      });
     }
-
-    res.json({ message: "Book deleted successfully" });
-  } catch (err) {
-    console.error("Delete book error:", err);
-    res.status(500).json({ message: "Failed to delete book" });
   }
-});
+);
+
 
 
 // ================= MARKS =================
@@ -814,9 +913,20 @@ app.get("/marks", allowRoles("admin", "teacher", "student"), async (req, res) =>
     let sql = "SELECT * FROM markstable WHERE 1=1";
     const params = [];
 
-    if (department) { sql += " AND department = ?"; params.push(department); }
-    if (year) { sql += " AND year = ?"; params.push(year); }
-    if (subject) { sql += " AND subject = ?"; params.push(subject); }
+    if (department) {
+      sql += " AND department = ?";
+      params.push(department);
+    }
+
+    if (year) {
+      sql += " AND year = ?";
+      params.push(year);
+    }
+
+    if (subject) {
+      sql += " AND subject = ?";
+      params.push(subject);
+    }
 
     // 🔐 students can only see their own marks
     if (role === "student") {
@@ -824,7 +934,9 @@ app.get("/marks", allowRoles("admin", "teacher", "student"), async (req, res) =>
       params.push(studentName);
     }
 
-    const rows = await db.query(sql, params);
+    // ✅ FIX: destructure mysql2 result
+    const [rows] = await db.query(sql, params);
+
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error("Fetch marks error:", err);
@@ -832,10 +944,12 @@ app.get("/marks", allowRoles("admin", "teacher", "student"), async (req, res) =>
   }
 });
 
+
 // GET STUDENTS FOR MARK ENTRY
 app.get("/marks/students", allowRoles("admin", "teacher"), async (req, res) => {
   try {
     const { department, year } = req.query;
+
     if (!department || !year) {
       return res.json({ success: true, data: [] });
     }
@@ -847,7 +961,9 @@ app.get("/marks/students", allowRoles("admin", "teacher"), async (req, res) => {
       AND TRIM(LOWER(year)) = LOWER(TRIM(?))
     `;
 
-    const rows = await db.query(sql, [department, year]);
+    // ✅ FIX: destructure mysql2 result
+    const [rows] = await db.query(sql, [department, year]);
+
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error("Fetch students error:", err);
@@ -855,13 +971,16 @@ app.get("/marks/students", allowRoles("admin", "teacher"), async (req, res) => {
   }
 });
 
+
 // ADD / UPDATE MARKS
 app.post("/marks", allowRoles("admin", "teacher"), async (req, res) => {
   try {
     const { student_name, subject, marks, department, year } = req.body;
 
     if (!student_name || !subject || marks == null || !department || !year) {
-      return res.status(400).json({ success: false, message: "All fields are required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "All fields are required" });
     }
 
     const sql = `
@@ -871,6 +990,7 @@ app.post("/marks", allowRoles("admin", "teacher"), async (req, res) => {
     `;
 
     await db.query(sql, [student_name, subject, marks, department, year]);
+
     res.json({ success: true, message: "Marks saved successfully" });
   } catch (err) {
     console.error("Save marks error:", err);
@@ -878,12 +998,13 @@ app.post("/marks", allowRoles("admin", "teacher"), async (req, res) => {
   }
 });
 
-// ATTENDANCE
+// ================= ATTENDANCE =================
 
 // FETCH ATTENDANCE
 app.get("/attendance", allowRoles("admin", "teacher", "student"), async (req, res) => {
   try {
     const { department, year, date } = req.query;
+
     let sql = "SELECT * FROM attendancetable WHERE 1=1";
     const params = [];
 
@@ -902,8 +1023,10 @@ app.get("/attendance", allowRoles("admin", "teacher", "student"), async (req, re
       params.push(date);
     }
 
-    const result = await db.query(sql, params);
-    res.json({ success: true, data: result });
+    // ✅ FIX: destructure rows
+    const [rows] = await db.query(sql, params);
+
+    res.json({ success: true, data: rows });
   } catch (err) {
     console.error("Fetch attendance error:", err);
     res.status(500).json({ success: false, error: "Failed to fetch attendance" });
@@ -915,6 +1038,7 @@ app.get("/attendance", allowRoles("admin", "teacher", "student"), async (req, re
 app.get("/attendance/students", allowRoles("admin", "teacher"), async (req, res) => {
   try {
     const { department, year } = req.query;
+
     if (!department || !year) {
       return res.json({ success: true, data: [] });
     }
@@ -926,8 +1050,13 @@ app.get("/attendance/students", allowRoles("admin", "teacher"), async (req, res)
       AND TRIM(LOWER(year)) = LOWER(TRIM(?))
     `;
 
-    const result = await db.query(sql, [department, formatYearLabel(year)]);
-    res.json({ success: true, data: result });
+    // ✅ FIX: destructure rows
+    const [rows] = await db.query(sql, [
+      department,
+      formatYearLabel(year)
+    ]);
+
+    res.json({ success: true, data: rows });
   } catch (err) {
     console.error("Fetch attendance students error:", err);
     res.status(500).json({ success: false, error: "Failed to fetch students" });
@@ -941,7 +1070,9 @@ app.post("/attendance/bulk", allowRoles("admin", "teacher"), async (req, res) =>
     const { records } = req.body;
 
     if (!Array.isArray(records) || records.length === 0) {
-      return res.status(400).json({ success: false, message: "No records provided" });
+      return res
+        .status(400)
+        .json({ success: false, message: "No records provided" });
     }
 
     const values = records.map(r => [
@@ -961,6 +1092,7 @@ app.post("/attendance/bulk", allowRoles("admin", "teacher"), async (req, res) =>
     `;
 
     await db.query(sql, [values]);
+
     res.json({ success: true, message: "Attendance saved successfully" });
   } catch (err) {
     console.error("Save attendance error:", err);
@@ -969,91 +1101,154 @@ app.post("/attendance/bulk", allowRoles("admin", "teacher"), async (req, res) =>
 });
 
 
-
-// ANNOUNCEMENTS
+// ================= ANNOUNCEMENTS =================
 
 // FETCH ALL ANNOUNCEMENTS
-app.get("/announcements", allowRoles("admin", "teacher", "student"), async (req, res) => {
-  try {
-    const result = await db.query(
-      "SELECT * FROM announcementtable ORDER BY date DESC"
-    );
+app.get(
+  "/announcements",
+  allowRoles("admin", "teacher", "student"),
+  async (req, res) => {
+    try {
+      // ✅ FIX: destructure rows
+      const [rows] = await db.query(
+        "SELECT * FROM announcementtable ORDER BY date DESC"
+      );
 
-    // IMPORTANT: return array directly
-    res.json(result);
-  } catch (err) {
-    console.error("Fetch announcements error:", err);
-    res.status(500).json({ message: "Failed to fetch announcements" });
+      res.json({
+        success: true,
+        data: rows
+      });
+    } catch (err) {
+      console.error("Fetch announcements error:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch announcements"
+      });
+    }
   }
-});
+);
 
 
 // ADD ANNOUNCEMENT
-app.post("/announcements", allowRoles("admin", "teacher"), async (req, res) => {
-  try {
-    const { title, message, date } = req.body;
+app.post(
+  "/announcements",
+  allowRoles("admin", "teacher"),
+  async (req, res) => {
+    try {
+      const { title, message, date } = req.body;
 
-    if (!title || !message || !date) {
-      return res.status(400).json({ message: "All fields are required" });
+      if (!title || !message || !date) {
+        return res.status(400).json({
+          success: false,
+          message: "All fields are required"
+        });
+      }
+
+      // ✅ FIX: destructure result
+      const [result] = await db.query(
+        `
+        INSERT INTO announcementtable (title, message, date)
+        VALUES (?, ?, ?)
+        `,
+        [title, message, date]
+      );
+
+      res.json({
+        success: true,
+        message: "Announcement added successfully",
+        id: result.insertId
+      });
+    } catch (err) {
+      console.error("Add announcement error:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to add announcement"
+      });
     }
-
-    await db.query(
-      "INSERT INTO announcementtable (title, message, date) VALUES (?, ?, ?)",
-      [title, message, date]
-    );
-
-    res.json({ message: "Announcement added successfully" });
-  } catch (err) {
-    console.error("Add announcement error:", err);
-    res.status(500).json({ message: "Failed to add announcement" });
   }
-});
+);
 
 
 // UPDATE ANNOUNCEMENT
-app.put("/announcements/:id", allowRoles("admin", "teacher"), async (req, res) => {
-  try {
-    const { title, message, date } = req.body;
+app.put(
+  "/announcements/:id",
+  allowRoles("admin", "teacher"),
+  async (req, res) => {
+    try {
+      const { title, message, date } = req.body;
 
-    if (!title || !message || !date) {
-      return res.status(400).json({ message: "All fields are required" });
+      if (!title || !message || !date) {
+        return res.status(400).json({
+          success: false,
+          message: "All fields are required"
+        });
+      }
+
+      // ✅ FIX: destructure result
+      const [result] = await db.query(
+        `
+        UPDATE announcementtable
+        SET title = ?, message = ?, date = ?
+        WHERE id = ?
+        `,
+        [title, message, date, req.params.id]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Announcement not found"
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Announcement updated successfully"
+      });
+    } catch (err) {
+      console.error("Update announcement error:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to update announcement"
+      });
     }
-
-    const result = await db.query(
-      "UPDATE announcementtable SET title=?, message=?, date=? WHERE id=?",
-      [title, message, date, req.params.id]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Announcement not found" });
-    }
-
-    res.json({ message: "Announcement updated successfully" });
-  } catch (err) {
-    console.error("Update announcement error:", err);
-    res.status(500).json({ message: "Failed to update announcement" });
   }
-});
+);
 
 
 // DELETE ANNOUNCEMENT
-app.delete("/announcements/:id", allowRoles("admin", "teacher"), async (req, res) => {
-  try {
-    const result = await db.query(
-      "DELETE FROM announcementtable WHERE id=?",
-      [req.params.id]
-    );
+app.delete(
+  "/announcements/:id",
+  allowRoles("admin", "teacher"),
+  async (req, res) => {
+    try {
+      // ✅ FIX: destructure result
+      const [result] = await db.query(
+        "DELETE FROM announcementtable WHERE id = ?",
+        [req.params.id]
+      );
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Announcement not found" });
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Announcement not found"
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Announcement deleted successfully"
+      });
+    } catch (err) {
+      console.error("Delete announcement error:", err);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete announcement"
+      });
     }
-
-    res.json({ message: "Announcement deleted successfully" });
-  } catch (err) {
-    console.error("Delete announcement error:", err);
-    res.status(500).json({ message: "Failed to delete announcement" });
   }
-});
+);
+
 
 //login routes
 app.post("/login", async (req, res) => {
