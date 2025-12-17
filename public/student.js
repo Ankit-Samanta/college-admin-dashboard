@@ -36,11 +36,13 @@ function loadDepartments() {
       const filter = document.getElementById("student-filter-dept");
       filter.innerHTML = `<option value="">All Departments</option>`;
 
-      // Handle both array or object with data
+      // Assuming backend returns array like [{id:1, department_name:"ECE"}, ...]
       const depts = Array.isArray(res) ? res : res.data || [];
+
       depts.forEach(d => {
-        if (d.name) {
-          filter.innerHTML += `<option value="${d.name}">${d.name}</option>`;
+        const deptName = d.name || d.department_name; // <- key fix
+        if (deptName) {
+          filter.innerHTML += `<option value="${deptName}">${deptName}</option>`;
         }
       });
     })
