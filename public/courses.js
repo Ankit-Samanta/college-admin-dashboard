@@ -5,21 +5,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const yearFilter = document.getElementById("course-filter-year");
   const role = localStorage.getItem("role");
 
-  let COURSES = []; // ✅ cache courses
+  let COURSES = [];
 
-  function formatYear(value) {
-    if (!value) return "";
-    switch (String(value)) {
-      case "1":
-      case "1st": return "1st";
-      case "2":
-      case "2nd": return "2nd";
-      case "3":
-      case "3rd": return "3rd";
-      case "4":
-      case "4th": return "4th";
-      default: return value;
-    }
+  function formatYear(y) {
+    if (y === "1" || y === "1st") return "1st";
+    if (y === "2" || y === "2nd") return "2nd";
+    if (y === "3" || y === "3rd") return "3rd";
+    if (y === "4" || y === "4th") return "4th";
+    return y;
   }
 
   /* ================= LOAD DEPARTMENTS ================= */
@@ -29,40 +22,30 @@ document.addEventListener("DOMContentLoaded", () => {
       .then(depts => {
         deptFilter.innerHTML = `<option value="">All Departments</option>`;
         depts.forEach(d => {
-          if (!d || !d.name) return;
           deptFilter.innerHTML += `<option value="${d.name}">${d.name}</option>`;
         });
-      })
-      .catch(err => console.error("Departments load failed:", err));
+      });
   }
 
   /* ================= LOAD COURSES ================= */
   function loadCourses() {
-    fetch(`${BASE_URL}/courses`, {
-      headers: { "x-role": role }
-    })
+    fetch(`${BASE_URL}/courses`)
       .then(res => res.json())
-      .then(data => {
-        COURSES = Array.isArray(data) ? data : [];
+      .then(rows => {
+        COURSES = Array.isArray(rows) ? rows : [];
         renderCourses();
-      })
-      .catch(err => console.error("Courses load failed:", err));
+      });
   }
 
   function renderCourses() {
     courseTable.innerHTML = "";
 
-    const selectedDept = deptFilter.value;
-    const selectedYear = yearFilter.value;
+    const dept = deptFilter.value;
+    const year = yearFilter.value;
 
     const filtered = COURSES.filter(c =>
-      c &&
-      c.id &&
-      c.name &&
-      c.department &&
-      c.year &&
-      (!selectedDept || c.department === selectedDept) &&
-      (!selectedYear || formatYear(c.year) === formatYear(selectedYear))
+      (!dept || c.department === dept) &&
+      (!year || formatYear(c.year) === formatYear(year))
     );
 
     if (filtered.length === 0) {
@@ -70,18 +53,20 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    filtered.forEach(course => {
+    filtered.forEach(c => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${course.name}</td>
-        <td>${course.department}</td>
-        <td>${formatYear(course.year)}</td>
-        <td>${course.credits}</td>
+        <td>${c.name}</td>
+        <td>${c.department}</td>
+        <td>${formatYear(c.year)}</td>
+        <td>${c.credits}</td>
         <td>
-          ${role === "admin" ? `
-            <button class="action-btn edit" data-id="${course.id}">Edit</button>
-            <button class="action-btn delete" data-id="${course.id}">Delete</button>
-          ` : ""}
+          ${
+            role === "admin"
+              ? `<button class="edit" onclick="editCourse(${c.id})">Edit</button>
+                 <button class="delete" onclick="deleteCourse(${c.id})">Delete</button>`
+              : ""
+          }
         </td>
       `;
       courseTable.appendChild(tr);
@@ -89,14 +74,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ================= ADD COURSE ================= */
-  function addCourse() {
-    const name = prompt("Enter course name:");
-    const department = deptFilter.value;
-    const year = formatYear(yearFilter.value);
-    const credits = prompt("Enter credits:");
+  window.addCourse = function () {
+    if (role !== "admin") return;
 
-    if (!name || !department || !year || !credits) {
-      alert("Fill name, department, year, credits");
+    const name = prompt("Course name:");
+    const credits = prompt("Credits:");
+    const department = prompt("Department (EXACT name):");
+    const year = formatYear(prompt("Year (1–4):"));
+
+    if (!name || !credits || !department || !year) {
+      alert("All fields are required");
       return;
     }
 
@@ -104,72 +91,61 @@ document.addEventListener("DOMContentLoaded", () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-role": role
+        "x-role": "admin"
       },
-      body: JSON.stringify({ name, department, year, credits })
+      body: JSON.stringify({ name, credits, department, year })
     })
       .then(res => res.json())
       .then(r => {
-        if (!r.success) throw new Error();
-        alert("Course added");
+        alert(r.message || "Course added");
         loadCourses();
+      });
+  };
+
+  /* ================= EDIT ================= */
+  window.editCourse = function (id) {
+    const c = COURSES.find(x => x.id === id);
+    if (!c) return;
+
+    const name = prompt("Course name:", c.name);
+    const credits = prompt("Credits:", c.credits);
+
+    if (!name || !credits) return;
+
+    fetch(`${BASE_URL}/courses/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-role": "admin"
+      },
+      body: JSON.stringify({
+        name,
+        credits,
+        department: c.department,
+        year: c.year
       })
-      .catch(() => alert("Add failed"));
-  }
+    })
+      .then(res => res.json())
+      .then(r => {
+        alert(r.message || "Updated");
+        loadCourses();
+      });
+  };
 
-  /* ================= EDIT COURSE ================= */
-  courseTable.addEventListener("click", e => {
-    const id = e.target.dataset.id;
-    if (!id) return;
+  /* ================= DELETE ================= */
+  window.deleteCourse = function (id) {
+    if (!confirm("Delete this course?")) return;
 
-    if (e.target.classList.contains("edit")) {
-      const course = COURSES.find(c => String(c.id) === id);
-      if (!course) return alert("Course not found");
-
-      const name = prompt("Edit name:", course.name);
-      const credits = prompt("Edit credits:", course.credits);
-
-      if (!name || !credits) return;
-
-      fetch(`${BASE_URL}/courses/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "x-role": role
-        },
-        body: JSON.stringify({
-          name,
-          department: course.department,
-          year: course.year,
-          credits
-        })
-      })
-        .then(res => res.json())
-        .then(r => {
-          if (!r.success) throw new Error();
-          alert("Course updated");
-          loadCourses();
-        })
-        .catch(() => alert("Update failed"));
-    }
-
-    /* ================= DELETE COURSE ================= */
-    if (e.target.classList.contains("delete")) {
-      if (!confirm("Delete this course?")) return;
-
-      fetch(`${BASE_URL}/courses/${id}`, {
-        method: "DELETE",
-        headers: { "x-role": role }
-      })
-        .then(res => res.json())
-        .then(r => {
-          if (!r.success) throw new Error();
-          alert("Course deleted");
-          loadCourses();
-        })
-        .catch(() => alert("Delete failed"));
-    }
-  });
+    fetch(`${BASE_URL}/courses/${id}`, {
+      method: "DELETE",
+      headers: { "x-role": "admin" }
+    })
+      .then(res => res.json())
+      .then(r => {
+        alert(r.message || "Deleted");
+        loadCourses();
+      });
+  };
 
   deptFilter.addEventListener("change", renderCourses);
   yearFilter.addEventListener("change", renderCourses);
