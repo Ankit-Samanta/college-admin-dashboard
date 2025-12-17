@@ -28,28 +28,18 @@ function formatYear(y) {
 
 /* ================= DEPARTMENTS ================= */
 function loadDepartments() {
-  fetch(`${BASE_URL}/departments`, {
-    headers: { "x-role": localStorage.getItem("role") }
-  })
+  const filter = document.getElementById("student-filter-dept");
+  fetch(`${BASE_URL}/departments`)
     .then(res => res.json())
-    .then(res => {
-      const filter = document.getElementById("student-filter-dept");
+    .then(depts => {
       filter.innerHTML = `<option value="">All Departments</option>`;
-
-      // Assuming backend returns array like [{id:1, department_name:"ECE"}, ...]
-      const depts = Array.isArray(res) ? res : res.data || [];
-
       depts.forEach(d => {
-        const deptName = d.name || d.department_name; // <- key fix
-        if (deptName) {
-          filter.innerHTML += `<option value="${deptName}">${deptName}</option>`;
-        }
+        filter.innerHTML += `<option value="${d.name}">${d.name}</option>`;
       });
     })
-    .catch(err => {
-      console.error("Failed to load departments:", err);
-    });
+    .catch(err => console.error("Failed to load departments:", err));
 }
+
 
 /* ================= LOAD STUDENTS ================= */
 function loadStudents() {
