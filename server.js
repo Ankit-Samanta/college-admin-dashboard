@@ -1250,78 +1250,60 @@ app.delete(
 );
 
 
-//login routes
 // ================= LOGIN =================
 app.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  const { email, password, role } = req.body;
 
-    if (!email || !password) {
-      return res.json({ success: false, message: "Email and password required" });
+  console.log("LOGIN HIT:", email, role);
+
+  try {
+    let table = "";
+
+    // 🔁 Decide table based on role
+    if (role === "admin") table = "usertable";
+    else if (role === "teacher") table = "teachertable";
+    else if (role === "student") table = "studenttable";
+    else {
+      return res.json({ success: false, message: "Invalid role" });
     }
 
-    let user = null;
-    let role = "";
-
-    // 1️⃣ CHECK ADMIN
-    const [admins] = await db.query(
-      "SELECT id, name, email, password FROM usertable WHERE email = ?",
+    const [rows] = await db.query(
+      `SELECT * FROM ${table} WHERE email = ?`,
       [email]
     );
 
-    if (admins.length > 0) {
-      user = admins[0];
-      role = "admin";
-    }
-
-    // 2️⃣ CHECK TEACHER
-    if (!user) {
-      const [teachers] = await db.query(
-        "SELECT id, name, email, password FROM teachertable WHERE email = ?",
-        [email]
-      );
-
-      if (teachers.length > 0) {
-        user = teachers[0];
-        role = "teacher";
-      }
-    }
-
-    // 3️⃣ CHECK STUDENT
-    if (!user) {
-      const [students] = await db.query(
-        "SELECT id, name, email, password FROM studenttable WHERE email = ?",
-        [email]
-      );
-
-      if (students.length > 0) {
-        user = students[0];
-        role = "student";
-      }
-    }
-
-    // ❌ NOT FOUND ANYWHERE
-    if (!user) {
+    if (!rows || rows.length === 0) {
       return res.json({ success: false, message: "Invalid credentials" });
     }
 
-    // 🔐 PASSWORD CHECK
+    const user = rows[0];
+
+    console.log("DB USER:", {
+      email: user.email,
+      hash: user.password
+    });
+
     const isMatch = bcrypt.compareSync(password, user.password);
+    console.log("BCRYPT MATCH:", isMatch);
+
     if (!isMatch) {
       return res.json({ success: false, message: "Invalid credentials" });
     }
 
     // ✅ SUCCESS
-    res.json({
+    return res.json({
       success: true,
-      role,
-      name: user.name,
-      email: user.email
+      user: {
+        id: user.id,
+        email: user.email,
+        role: role,
+        name: user.name
+      }
     });
 
   } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("LOGIN ERROR:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
