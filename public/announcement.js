@@ -19,21 +19,21 @@ function loadAnnouncements() {
   const role = localStorage.getItem("role");
 
   fetch(`${BASE_URL}/announcements`, {
-    headers: {
-      "x-role": role
-    }
+    headers: { "x-role": role }
   })
     .then(res => res.json())
-    .then(data => {
-      if (!Array.isArray(data)) {
-        console.error("Announcements API did not return array:", data);
-        return;
-      }
+    .then(resBody => {
+      const data = Array.isArray(resBody.data) ? resBody.data : [];
 
       ANNOUNCEMENTS_CACHE = data;
 
       const tbody = document.querySelector("#announcement-table tbody");
       tbody.innerHTML = "";
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4">No announcements found</td></tr>`;
+        return;
+      }
 
       data.forEach(a => {
         if (!a.id) return;
@@ -60,7 +60,9 @@ function loadAnnouncements() {
         tbody.appendChild(tr);
       });
     })
-    .catch(err => console.error("Load announcements failed:", err));
+    .catch(err => {
+      console.error("Load announcements failed:", err);
+    });
 }
 
 function addAnnouncement() {
@@ -84,19 +86,16 @@ function addAnnouncement() {
     body: JSON.stringify({ title, message, date })
   })
     .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        alert("Announcement added");
-        loadAnnouncements();
-      } else {
-        alert("Add failed");
-      }
-    });
+    .then(r => {
+      if (!r.success) throw new Error();
+      alert("Announcement added");
+      loadAnnouncements();
+    })
+    .catch(() => alert("Add failed"));
 }
 
 function editAnnouncement(id) {
   const role = localStorage.getItem("role");
-  if (!id) return alert("Invalid announcement ID");
 
   const ann = ANNOUNCEMENTS_CACHE.find(a => a.id === id);
   if (!ann) return alert("Announcement not found");
@@ -116,35 +115,28 @@ function editAnnouncement(id) {
     body: JSON.stringify({ title, message, date })
   })
     .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        alert("Announcement updated");
-        loadAnnouncements();
-      } else {
-        alert("Update failed");
-      }
-    });
+    .then(r => {
+      if (!r.success) throw new Error();
+      alert("Announcement updated");
+      loadAnnouncements();
+    })
+    .catch(() => alert("Update failed"));
 }
 
 function deleteAnnouncement(id) {
   const role = localStorage.getItem("role");
-  if (!id) return alert("Invalid announcement ID");
 
   if (!confirm("Delete this announcement?")) return;
 
   fetch(`${BASE_URL}/announcements/${id}`, {
     method: "DELETE",
-    headers: {
-      "x-role": role
-    }
+    headers: { "x-role": role }
   })
     .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        alert("Announcement deleted");
-        loadAnnouncements();
-      } else {
-        alert("Delete failed");
-      }
-    });
+    .then(r => {
+      if (!r.success) throw new Error();
+      alert("Announcement deleted");
+      loadAnnouncements();
+    })
+    .catch(() => alert("Delete failed"));
 }

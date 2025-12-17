@@ -104,33 +104,51 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ================= EDIT ================= */
   window.editCourse = function (id) {
-    const c = COURSES.find(x => x.id === id);
-    if (!c) return;
+  if (role !== "admin") return;
 
-    const name = prompt("Course name:", c.name);
-    const credits = prompt("Credits:", c.credits);
+  const c = COURSES.find(x => x.id === id);
+  if (!c) return alert("Course not found");
 
-    if (!name || !credits) return;
+  const name = prompt("Course name:", c.name);
+  if (!name) return;
 
-    fetch(`${BASE_URL}/courses/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-role": "admin"
-      },
-      body: JSON.stringify({
-        name,
-        credits,
-        department: c.department,
-        year: c.year
-      })
+  const credits = prompt("Credits:", c.credits);
+  if (!credits) return;
+
+  const department = prompt(
+    "Department (EXACT name):",
+    c.department
+  );
+  if (!department) return;
+
+  let yearInput = prompt(
+    "Year (1–4):",
+    formatYear(c.year)
+  );
+  if (!yearInput) return;
+
+  const year = formatYear(yearInput);
+
+  fetch(`${BASE_URL}/courses/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "x-role": "admin"
+    },
+    body: JSON.stringify({
+      name,
+      credits,
+      department,
+      year
     })
-      .then(res => res.json())
-      .then(r => {
-        alert(r.message || "Updated");
-        loadCourses();
-      });
-  };
+  })
+    .then(res => res.json())
+    .then(r => {
+      alert(r.message || "Course updated");
+      loadCourses();
+    })
+    .catch(() => alert("Update failed"));
+};
 
   /* ================= DELETE ================= */
   window.deleteCourse = function (id) {

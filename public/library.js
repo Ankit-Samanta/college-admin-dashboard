@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const addBtn = document.getElementById("add-book");
   const role = localStorage.getItem("role");
 
-  let BOOKS = []; // ✅ cache
+  let BOOKS = [];
 
   /* ================= LOAD ================= */
   function loadLibrary() {
@@ -11,8 +11,8 @@ document.addEventListener("DOMContentLoaded", () => {
       headers: { "x-role": role }
     })
       .then(res => res.json())
-      .then(data => {
-        BOOKS = Array.isArray(data) ? data : [];
+      .then(res => {
+        BOOKS = Array.isArray(res.data) ? res.data : [];
         renderLibrary();
       })
       .catch(err => {
@@ -24,28 +24,28 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderLibrary() {
     tbody.innerHTML = "";
 
-    const valid = BOOKS.filter(b =>
-      b &&
-      b.id &&
-      b.title
-    );
-
-    if (valid.length === 0) {
+    if (BOOKS.length === 0) {
       tbody.innerHTML = `<tr><td colspan="4">No books found</td></tr>`;
       return;
     }
 
-    valid.forEach(b => {
+    BOOKS.forEach(b => {
+      if (!b?.id || !b?.title) return;
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${b.title}</td>
         <td>${b.author || ""}</td>
         <td>${b.subject || ""}</td>
         <td>
-          ${role === "admin" ? `
-            <button class="action-btn edit" data-id="${b.id}">Edit</button>
-            <button class="action-btn delete" data-id="${b.id}">Delete</button>
-          ` : ""}
+          ${
+            role === "admin"
+              ? `
+                <button class="action-btn edit" data-id="${b.id}">Edit</button>
+                <button class="action-btn delete" data-id="${b.id}">Delete</button>
+              `
+              : ""
+          }
         </td>
       `;
       tbody.appendChild(tr);

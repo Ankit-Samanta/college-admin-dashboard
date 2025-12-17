@@ -16,7 +16,8 @@ document.addEventListener("DOMContentLoaded", () => {
     headers: { "x-role": role }
   })
     .then(res => res.json())
-    .then(depts => {
+    .then(res => {
+      const depts = res.data || res; // safety
       deptFilter.innerHTML = `<option value="">Select Department</option>`;
       depts.forEach(d => {
         deptFilter.innerHTML += `<option value="${d.name}">${d.name}</option>`;
@@ -33,7 +34,8 @@ document.addEventListener("DOMContentLoaded", () => {
       headers: { "x-role": role }
     })
       .then(res => res.json())
-      .then(courses => {
+      .then(res => {
+        const courses = res.data || res;
         courses.forEach(c => {
           subjectFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`;
         });
@@ -60,8 +62,12 @@ document.addEventListener("DOMContentLoaded", () => {
       headers: { "x-role": role }
     })
       .then(res => res.json())
-      .then(students => {
-        STUDENTS = students;
+      .then(res => {
+        if (!Array.isArray(res.data)) {
+          throw new Error("Students not array");
+        }
+
+        STUDENTS = res.data;
 
         if (STUDENTS.length === 0) {
           tbody.innerHTML = `<tr><td colspan="6">No students found</td></tr>`;
@@ -73,10 +79,14 @@ document.addEventListener("DOMContentLoaded", () => {
           headers: { "x-role": role }
         })
           .then(res => res.json())
-          .then(existing => {
-            MARKS = existing || [];
+          .then(res => {
+            MARKS = Array.isArray(res.data) ? res.data : [];
             renderRows();
           });
+      })
+      .catch(err => {
+        console.error("Marks load error:", err);
+        tbody.innerHTML = `<tr><td colspan="6">Failed to load marks</td></tr>`;
       });
   }
 
@@ -85,12 +95,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     STUDENTS.forEach(s => {
       const markRow = MARKS.find(
-        m => m.student_id === s.id && m.subject === subjectFilter.value
+        m => m.student_name === s.name && m.subject === subjectFilter.value
       );
 
       const tr = document.createElement("tr");
-      tr.dataset.studentId = s.id;
-      tr.dataset.markId = markRow ? markRow.id : "";
 
       tr.innerHTML = `
         <td>${s.name}</td>
@@ -106,6 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
             : `<td></td>`
         }
       `;
+
       tbody.appendChild(tr);
     });
   }
@@ -115,9 +124,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!e.target.classList.contains("save-mark-btn")) return;
 
     const row = e.target.closest("tr");
-
-    const student_id = row.dataset.studentId;
-    const mark_id = row.dataset.markId || null;
     const marks = row.children[2].textContent.trim();
 
     if (marks === "" || isNaN(marks)) {
@@ -126,13 +132,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const payload = {
-      id: mark_id,
-      student_id,
       student_name: row.children[0].textContent,
-      department: row.children[3].textContent,
-      year: row.children[4].textContent,
       subject: row.children[1].textContent,
-      marks
+      marks,
+      department: row.children[3].textContent,
+      year: row.children[4].textContent
     };
 
     fetch(`${BASE_URL}/marks`, {

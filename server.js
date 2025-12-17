@@ -64,25 +64,23 @@ function allowRoles(...roles) {
   };
 }
 
-// DASHBOARD
-app.get("/dashboard/counts", async (req, res) => {
-  const counts = {};
-  const queries = [
-    { key: "students", sql: "SELECT COUNT(*) AS count FROM studenttable" },
-    { key: "teachers", sql: "SELECT COUNT(*) AS count FROM teachertable" },
-    { key: "employees", sql: "SELECT COUNT(*) AS count FROM employeetable" },
-    { key: "announcements", sql: "SELECT COUNT(*) AS count FROM announcementtable" }
-  ];
-
+// DASHBOARD COUNTS
+app.get("/dashboard/counts", allowRoles("admin", "teacher"), async (req, res) => {
   try {
-    for (const q of queries) {
-      const result = await db.query(q.sql);
-      counts[q.key] = result[0] ? result[0].count : 0;
-    }
-    res.json(counts);
+    const [[students]] = await db.query("SELECT COUNT(*) AS count FROM studenttable");
+    const [[teachers]] = await db.query("SELECT COUNT(*) AS count FROM teachertable");
+    const [[employees]] = await db.query("SELECT COUNT(*) AS count FROM employeetable");
+    const [[announcements]] = await db.query("SELECT COUNT(*) AS count FROM announcementtable");
+
+    res.json({
+      students: students.count,
+      teachers: teachers.count,
+      employees: employees.count,
+      announcements: announcements.count
+    });
   } catch (err) {
-    console.error("Dashboard counts error:", err);
-    res.status(500).json({ error: "Failed to fetch counts" });
+    console.error("Dashboard count error:", err);
+    res.status(500).json({ error: "Failed to fetch dashboard counts" });
   }
 });
 
@@ -336,7 +334,10 @@ app.post("/employees", allowRoles("admin"), async (req, res) => {
     const { name, role, email, phone } = req.body;
 
     if (!name || !role || !email || !phone) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required"
+      });
     }
 
     const sql = `
@@ -345,12 +346,20 @@ app.post("/employees", allowRoles("admin"), async (req, res) => {
     `;
 
     await db.query(sql, [name, role, email, phone]);
-    res.json({ message: "Employee added successfully" });
+
+    res.json({
+      success: true,
+      message: "Employee added successfully"
+    });
   } catch (err) {
     console.error("Insert employee error:", err);
-    res.status(500).json({ message: "Insert failed" });
+    res.status(500).json({
+      success: false,
+      message: "Insert failed"
+    });
   }
 });
+
 
 // UPDATE employee
 app.put("/employees/:id", allowRoles("admin"), async (req, res) => {
@@ -358,31 +367,36 @@ app.put("/employees/:id", allowRoles("admin"), async (req, res) => {
     const { name, role, email, phone } = req.body;
 
     if (!name || !role || !email || !phone) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required"
+      });
     }
 
-    const sql = `
-      UPDATE employeetable
-      SET name = ?, role = ?, email = ?, phone = ?
-      WHERE id = ?
-    `;
-
-    const [result] = await db.query(sql, [
-      name,
-      role,
-      email,
-      phone,
-      req.params.id
-    ]);
+    const [result] = await db.query(
+      `UPDATE employeetable
+       SET name=?, role=?, email=?, phone=?
+       WHERE id=?`,
+      [name, role, email, phone, req.params.id]
+    );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found"
+      });
     }
 
-    res.json({ message: "Employee updated successfully" });
+    res.json({
+      success: true,
+      message: "Employee updated successfully"
+    });
   } catch (err) {
     console.error("Update employee error:", err);
-    res.status(500).json({ message: "Update failed" });
+    res.status(500).json({
+      success: false,
+      message: "Update failed"
+    });
   }
 });
 
@@ -390,18 +404,27 @@ app.put("/employees/:id", allowRoles("admin"), async (req, res) => {
 app.delete("/employees/:id", allowRoles("admin"), async (req, res) => {
   try {
     const [result] = await db.query(
-      "DELETE FROM employeetable WHERE id = ?",
+      "DELETE FROM employeetable WHERE id=?",
       [req.params.id]
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found"
+      });
     }
 
-    res.json({ message: "Employee deleted successfully" });
+    res.json({
+      success: true,
+      message: "Employee deleted successfully"
+    });
   } catch (err) {
     console.error("Delete employee error:", err);
-    res.status(500).json({ message: "Delete failed" });
+    res.status(500).json({
+      success: false,
+      message: "Delete failed"
+    });
   }
 });
 
@@ -424,7 +447,10 @@ app.post("/departments", allowRoles("admin"), async (req, res) => {
     const { name, head, phone, email, strength } = req.body;
 
     if (!name || !head || !phone || !email || !strength) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required"
+      });
     }
 
     const sql = `
@@ -433,12 +459,20 @@ app.post("/departments", allowRoles("admin"), async (req, res) => {
     `;
 
     await db.query(sql, [name, head, phone, email, strength]);
-    res.json({ message: "Department added successfully" });
+
+    res.json({
+      success: true,
+      message: "Department added successfully"
+    });
   } catch (err) {
     console.error("Add department error:", err);
-    res.status(500).json({ message: "Insert failed" });
+    res.status(500).json({
+      success: false,
+      message: "Insert failed"
+    });
   }
 });
+
 
 // UPDATE department
 app.put("/departments/:id", allowRoles("admin"), async (req, res) => {
@@ -446,51 +480,65 @@ app.put("/departments/:id", allowRoles("admin"), async (req, res) => {
     const { name, head, phone, email, strength } = req.body;
 
     if (!name || !head || !phone || !email || !strength) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required"
+      });
     }
 
-    const sql = `
-      UPDATE departmenttable
-      SET name = ?, head = ?, phone = ?, email = ?, strength = ?
-      WHERE id = ?
-    `;
-
-    const [result] = await db.query(sql, [
-      name,
-      head,
-      phone,
-      email,
-      strength,
-      req.params.id
-    ]);
+    const [result] = await db.query(
+      `UPDATE departmenttable
+       SET name=?, head=?, phone=?, email=?, strength=?
+       WHERE id=?`,
+      [name, head, phone, email, strength, req.params.id]
+    );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Department not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Department not found"
+      });
     }
 
-    res.json({ message: "Department updated successfully" });
+    res.json({
+      success: true,
+      message: "Department updated successfully"
+    });
   } catch (err) {
     console.error("Update department error:", err);
-    res.status(500).json({ message: "Update failed" });
+    res.status(500).json({
+      success: false,
+      message: "Update failed"
+    });
   }
 });
+
 
 // DELETE department
 app.delete("/departments/:id", allowRoles("admin"), async (req, res) => {
   try {
     const [result] = await db.query(
-      "DELETE FROM departmenttable WHERE id = ?",
+      "DELETE FROM departmenttable WHERE id=?",
       [req.params.id]
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Department not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Department not found"
+      });
     }
 
-    res.json({ message: "Department deleted successfully" });
+    res.json({
+      success: true,
+      message: "Department deleted successfully"
+    });
   } catch (err) {
     console.error("Delete department error:", err);
-    res.status(500).json({ message: "Delete failed" });
+    res.status(500).json({
+      success: false,
+      message: "Delete failed"
+    });
   }
 });
 

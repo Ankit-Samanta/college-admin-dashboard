@@ -34,12 +34,24 @@ function loadDepartments() {
     .then(res => res.json())
     .then(depts => {
       const filter = document.getElementById("student-filter-dept");
+
       filter.innerHTML = `<option value="">All Departments</option>`;
+
+      if (!Array.isArray(depts)) {
+        console.error("Departments API error:", depts);
+        return;
+      }
+
       depts.forEach(d => {
+        if (!d.name) return;
         filter.innerHTML += `<option value="${d.name}">${d.name}</option>`;
       });
+    })
+    .catch(err => {
+      console.error("Failed to load departments:", err);
     });
 }
+
 
 /* ================= LOAD STUDENTS ================= */
 function loadStudents() {

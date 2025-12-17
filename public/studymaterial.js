@@ -30,7 +30,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Allow only PDFs (recommended)
       if (!file.name.toLowerCase().endsWith(".pdf")) {
         alert("Only PDF files are allowed.");
         return;
@@ -47,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
       })
         .then(res => res.json())
         .then(r => {
+          if (!r.success) throw new Error(r.message || "Upload failed");
           alert(r.message || "Upload successful");
           form.reset();
           loadStudyMaterials();
@@ -66,7 +66,8 @@ document.addEventListener("DOMContentLoaded", () => {
       headers: { "x-role": role }
     })
       .then(res => res.json())
-      .then(data => {
+      .then(res => {
+        const data = res.data || [];
         tableBody.innerHTML = "";
 
         if (!Array.isArray(data) || data.length === 0) {
@@ -121,6 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
     })
       .then(res => res.json())
       .then(r => {
+        if (!r.success) throw new Error(r.message || "Delete failed");
         alert(r.message || "Deleted");
         loadStudyMaterials();
       })

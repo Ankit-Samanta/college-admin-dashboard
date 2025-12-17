@@ -26,7 +26,8 @@ function ensureDatePicker() {
 function loadDepartments() {
   fetch(`${BASE_URL}/departments`)
     .then(r => r.json())
-    .then(data => {
+    .then(res => {
+      const data = res.data || res;
       if (!Array.isArray(data)) return;
 
       const deptFilter = document.getElementById("attendance-filter-dept");
@@ -70,8 +71,11 @@ async function loadAttendanceTable() {
       })
     ]);
 
-    const students = await studentsRes.json();
-    const records = await attendanceRes.json();
+    const studentsJson = await studentsRes.json();
+    const attendanceJson = await attendanceRes.json();
+
+    const students = studentsJson.data || [];
+    const records = attendanceJson.data || [];
 
     if (!Array.isArray(students)) throw new Error("Students not array");
     if (!Array.isArray(records)) throw new Error("Attendance not array");
