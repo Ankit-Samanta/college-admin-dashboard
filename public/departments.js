@@ -1,46 +1,69 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const departmentTableBody = document.querySelector("#department-table tbody");
-  const addDepartmentBtn = document.getElementById("add-department");
+  const tbody = document.querySelector("#department-table tbody");
+  const addBtn = document.getElementById("add-department");
   const role = localStorage.getItem("role");
 
+  let DEPARTMENTS = []; // ✅ cache
+
+  /* ================= LOAD DEPARTMENTS ================= */
   function loadDepartments() {
     fetch(`${BASE_URL}/departments`, {
-      headers: {
-        "x-role": role
-      }
+      headers: { "x-role": role }
     })
       .then(res => res.json())
       .then(data => {
-        departmentTableBody.innerHTML = "";
-        data.forEach(dept => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${dept.name}</td>
-            <td>${dept.head}</td>
-            <td>${dept.phone}</td>
-            <td>${dept.email}</td>
-            <td>${dept.strength}</td>
-            <td>
-              <button class="action-btn edit" data-id="${dept.id}">Edit</button>
-              <button class="action-btn delete" data-id="${dept.id}">Delete</button>
-            </td>
-          `;
-          departmentTableBody.appendChild(row);
-        });
+        DEPARTMENTS = Array.isArray(data) ? data : [];
+        renderDepartments();
+      })
+      .catch(err => {
+        console.error("Department load failed:", err);
+        tbody.innerHTML = `<tr><td colspan="6">Failed to load</td></tr>`;
       });
   }
 
-  loadDepartments();
+  function renderDepartments() {
+    tbody.innerHTML = "";
 
-  addDepartmentBtn.addEventListener("click", () => {
-    const name = prompt("Enter Department Name:");
-    const head = prompt("Enter Department Head:");
-    const phone = prompt("Enter Department Phone:");
-    const email = prompt("Enter Department Email:");
-    const strength = prompt("Enter Department Strength:");
+    const valid = DEPARTMENTS.filter(d =>
+      d &&
+      d.id &&
+      d.name
+    );
+
+    if (valid.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6">No departments found</td></tr>`;
+      return;
+    }
+
+    valid.forEach(d => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d.name}</td>
+        <td>${d.head || ""}</td>
+        <td>${d.phone || ""}</td>
+        <td>${d.email || ""}</td>
+        <td>${d.strength || ""}</td>
+        <td>
+          ${role === "admin" ? `
+            <button class="action-btn edit" data-id="${d.id}">Edit</button>
+            <button class="action-btn delete" data-id="${d.id}">Delete</button>
+          ` : ""}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* ================= ADD DEPARTMENT ================= */
+  function addDepartment() {
+    const name = prompt("Department name:");
+    const head = prompt("Department head:");
+    const phone = prompt("Phone:");
+    const email = prompt("Email:");
+    const strength = prompt("Strength:");
 
     if (!name || !head || !phone || !email || !strength) {
-      alert("All fields are required.");
+      alert("All fields required");
       return;
     }
 
@@ -50,34 +73,34 @@ document.addEventListener("DOMContentLoaded", () => {
         "Content-Type": "application/json",
         "x-role": role
       },
-      body: JSON.stringify({ name, head, phone, email, strength }),
+      body: JSON.stringify({ name, head, phone, email, strength })
     })
       .then(res => res.json())
-      .then(data => {
-        alert(data.message || "Department added successfully.");
+      .then(r => {
+        if (!r.success) throw new Error();
+        alert("Department added");
         loadDepartments();
       })
-      .catch(err => {
-        alert("Error adding department.");
-        console.error(err);
-      });
-  });
+      .catch(() => alert("Add failed"));
+  }
 
-  departmentTableBody.addEventListener("click", (e) => {
+  /* ================= EDIT / DELETE ================= */
+  tbody.addEventListener("click", e => {
     const id = e.target.dataset.id;
+    if (!id) return;
 
+    const dept = DEPARTMENTS.find(d => String(d.id) === id);
+    if (!dept) return alert("Invalid department");
+
+    /* -------- EDIT -------- */
     if (e.target.classList.contains("edit")) {
-      const row = e.target.closest("tr");
-      const name = prompt("Edit Department Name:", row.children[0].textContent);
-      const head = prompt("Edit Department Head:", row.children[1].textContent);
-      const phone = prompt("Edit Department Phone:", row.children[2].textContent);
-      const email = prompt("Edit Department Email:", row.children[3].textContent);
-      const strength = prompt("Edit Department Strength:", row.children[4].textContent);
+      const name = prompt("Edit name:", dept.name);
+      const head = prompt("Edit head:", dept.head);
+      const phone = prompt("Edit phone:", dept.phone);
+      const email = prompt("Edit email:", dept.email);
+      const strength = prompt("Edit strength:", dept.strength);
 
-      if (!name || !head || !phone || !email || !strength) {
-        alert("All fields are required.");
-        return;
-      }
+      if (!name || !head || !phone || !email || !strength) return;
 
       fetch(`${BASE_URL}/departments/${id}`, {
         method: "PUT",
@@ -85,37 +108,42 @@ document.addEventListener("DOMContentLoaded", () => {
           "Content-Type": "application/json",
           "x-role": role
         },
-        body: JSON.stringify({ name, head, phone, email, strength }),
+        body: JSON.stringify({ name, head, phone, email, strength })
       })
         .then(res => res.json())
-        .then(data => {
-          alert(data.message || "Department updated successfully.");
+        .then(r => {
+          if (!r.success) throw new Error();
+          alert("Department updated");
           loadDepartments();
         })
-        .catch(err => {
-          alert("Error updating department.");
-          console.error(err);
-        });
+        .catch(() => alert("Update failed"));
     }
 
+    /* -------- DELETE -------- */
     if (e.target.classList.contains("delete")) {
-      if (confirm("Are you sure you want to delete this department?")) {
-        fetch(`${BASE_URL}/departments/${id}`, {
-          method: "DELETE",
-          headers: {
-            "x-role": role
-          }
+      if (!confirm("Delete this department?")) return;
+
+      fetch(`${BASE_URL}/departments/${id}`, {
+        method: "DELETE",
+        headers: { "x-role": role }
+      })
+        .then(res => res.json())
+        .then(r => {
+          if (!r.success) throw new Error();
+          alert("Department deleted");
+          loadDepartments();
         })
-          .then(res => res.json())
-          .then(data => {
-            alert(data.message || "Department deleted successfully.");
-            loadDepartments();
-          })
-          .catch(err => {
-            alert("Error deleting department.");
-            console.error(err);
-          });
-      }
+        .catch(() => alert("Delete failed"));
     }
   });
+
+  /* ================= ROLE CONTROL ================= */
+  if (role === "admin") {
+    addBtn.style.display = "inline-block";
+    addBtn.onclick = addDepartment;
+  } else {
+    addBtn.style.display = "none";
+  }
+
+  loadDepartments();
 });

@@ -1,21 +1,24 @@
 document.addEventListener("DOMContentLoaded", () => {
+
   const role = localStorage.getItem("role");
 
   const form = document.getElementById("studyMaterialForm");
   const fileInput = document.getElementById("materialFile");
   const uploadedByInput = document.getElementById("materialUploadedBy");
+  const tableBody = document.querySelector("#studyMaterialTable tbody");
 
-  // Students cannot upload
-  if (role === "student" && form) {
+  /* ================= ROLE VISIBILITY ================= */
+  if (form && role === "student") {
     form.style.display = "none";
   }
 
+  /* ================= UPLOAD ================= */
   if (form) {
-    form.addEventListener("submit", function (e) {
+    form.addEventListener("submit", (e) => {
       e.preventDefault();
 
-      if (role === "student") {
-        alert("Students cannot upload study materials.");
+      if (role !== "admin" && role !== "teacher") {
+        alert("You are not allowed to upload files.");
         return;
       }
 
@@ -23,7 +26,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const file = fileInput.files[0];
 
       if (!uploaded_by || !file) {
-        alert("Please fill in all fields and choose a file.");
+        alert("All fields are required.");
+        return;
+      }
+
+      // Allow only PDFs (recommended)
+      if (!file.name.toLowerCase().endsWith(".pdf")) {
+        alert("Only PDF files are allowed.");
         return;
       }
 
@@ -33,37 +42,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
       fetch(`${BASE_URL}/studymaterials/upload`, {
         method: "POST",
-        headers: {
-          "x-role": role
-        },
+        headers: { "x-role": role },
         body: formData
       })
         .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            alert("Study material uploaded successfully.");
-            form.reset();
-            loadStudyMaterials();
-          } else {
-            alert(data.message || "Upload failed.");
-          }
+        .then(r => {
+          alert(r.message || "Upload successful");
+          form.reset();
+          loadStudyMaterials();
         })
         .catch(err => {
           console.error("Upload error:", err);
-          alert("Server error.");
+          alert("Upload failed.");
         });
     });
   }
 
+  /* ================= LOAD ================= */
   function loadStudyMaterials() {
+    if (!tableBody) return;
+
     fetch(`${BASE_URL}/studymaterials`, {
-      headers: {
-        "x-role": role
-      }
+      headers: { "x-role": role }
     })
       .then(res => res.json())
       .then(data => {
-        const tableBody = document.querySelector("#studyMaterialTable tbody");
         tableBody.innerHTML = "";
 
         if (!Array.isArray(data) || data.length === 0) {
@@ -72,14 +75,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         data.forEach(item => {
-          const row = document.createElement("tr");
+          const date = item.upload_date
+            ? new Date(item.upload_date).toLocaleDateString()
+            : "-";
 
-          const actionColumn =
+          const actions =
             role === "admin" || role === "teacher"
               ? `<button class="action-btn delete" onclick="deleteMaterial(${item.id})">Delete</button>`
               : "";
 
-          row.innerHTML = `
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
             <td>${item.id}</td>
             <td>
               <a href="${BASE_URL}/uploads/${item.filename}" target="_blank">
@@ -87,44 +93,40 @@ document.addEventListener("DOMContentLoaded", () => {
               </a>
             </td>
             <td>${item.uploaded_by}</td>
-            <td>${item.upload_date}</td>
-            <td>${actionColumn}</td>
+            <td>${date}</td>
+            <td>${actions}</td>
           `;
 
-          tableBody.appendChild(row);
+          tableBody.appendChild(tr);
         });
       })
       .catch(err => {
         console.error("Load error:", err);
+        tableBody.innerHTML = `<tr><td colspan="5">Failed to load data</td></tr>`;
       });
   }
 
+  /* ================= DELETE ================= */
   window.deleteMaterial = function (id) {
-    if (role === "student") {
-      alert("Students cannot delete study materials.");
+    if (role !== "admin" && role !== "teacher") {
+      alert("You are not allowed to delete files.");
       return;
     }
 
-    if (!confirm("Are you sure you want to delete this file?")) return;
+    if (!confirm("Delete this study material?")) return;
 
     fetch(`${BASE_URL}/studymaterials/${id}`, {
       method: "DELETE",
-      headers: {
-        "x-role": role
-      }
+      headers: { "x-role": role }
     })
       .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert("Deleted successfully.");
-          loadStudyMaterials();
-        } else {
-          alert(data.message || "Failed to delete.");
-        }
+      .then(r => {
+        alert(r.message || "Deleted");
+        loadStudyMaterials();
       })
       .catch(err => {
         console.error("Delete error:", err);
-        alert("Server error.");
+        alert("Delete failed.");
       });
   };
 

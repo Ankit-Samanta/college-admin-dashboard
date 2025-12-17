@@ -5,134 +5,135 @@ document.addEventListener("DOMContentLoaded", () => {
   const deptFilter = document.getElementById("marks-filter-dept");
   const yearFilter = document.getElementById("marks-filter-year");
   const subjectFilter = document.getElementById("marks-filter-subject");
-  const loadBtn = document.getElementById("load-marks-btn"); 
-  const marksTableBody = document.querySelector("#marks-table tbody");
+  const loadBtn = document.getElementById("load-marks-btn");
+  const tbody = document.querySelector("#marks-table tbody");
 
-  let selectedDepartment = "";
-  let selectedYear = "";
-  let selectedSubject = "";
+  let STUDENTS = [];
+  let MARKS = [];
 
+  /* ================= DEPARTMENTS ================= */
   fetch(`${BASE_URL}/departments`, {
     headers: { "x-role": role }
   })
     .then(res => res.json())
-    .then(data => {
-      data.forEach(d => {
-        const opt = document.createElement("option");
-        opt.value = d.name;
-        opt.textContent = d.name;
-        deptFilter.appendChild(opt);
+    .then(depts => {
+      deptFilter.innerHTML = `<option value="">Select Department</option>`;
+      depts.forEach(d => {
+        deptFilter.innerHTML += `<option value="${d.name}">${d.name}</option>`;
       });
     });
 
-  [deptFilter, yearFilter].forEach(f => {
-    f.addEventListener("change", () => {
-      selectedDepartment = deptFilter.value;
-      selectedYear = yearFilter.value;
-      loadSubjects();
-    });
-  });
-
-  subjectFilter.addEventListener("change", () => {
-    selectedSubject = subjectFilter.value;
-  });
-
+  /* ================= SUBJECTS ================= */
   function loadSubjects() {
     subjectFilter.innerHTML = `<option value="">Select Subject</option>`;
 
-    if (!selectedDepartment || !selectedYear) return;
+    if (!deptFilter.value || !yearFilter.value) return;
 
-    fetch(`${BASE_URL}/courses?department=${selectedDepartment}&year=${selectedYear}`, {
+    fetch(`${BASE_URL}/courses?department=${deptFilter.value}&year=${yearFilter.value}`, {
       headers: { "x-role": role }
     })
       .then(res => res.json())
-      .then(subjects => {
-        subjects.forEach(course => {
-          const opt = document.createElement("option");
-          opt.value = course.name;
-          opt.textContent = course.name;
-          subjectFilter.appendChild(opt);
+      .then(courses => {
+        courses.forEach(c => {
+          subjectFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`;
         });
       });
   }
 
-  loadBtn.addEventListener("click", () => {
-    selectedDepartment = deptFilter.value;
-    selectedYear = yearFilter.value;
-    selectedSubject = subjectFilter.value;
+  deptFilter.addEventListener("change", loadSubjects);
+  yearFilter.addEventListener("change", loadSubjects);
 
-    if (!selectedDepartment || !selectedYear || !selectedSubject) {
-      alert("Select Department, Year & Subject");
+  /* ================= LOAD TABLE ================= */
+  loadBtn.addEventListener("click", () => {
+    if (!deptFilter.value || !yearFilter.value || !subjectFilter.value) {
+      alert("Select Department, Year and Subject");
       return;
     }
-
     loadMarksTable();
   });
 
   function loadMarksTable() {
-    marksTableBody.innerHTML = "";
+    tbody.innerHTML = "";
 
-    fetch(`${BASE_URL}/marks/students?department=${selectedDepartment}&year=${selectedYear}`, {
+    /* ---- students ---- */
+    fetch(`${BASE_URL}/marks/students?department=${deptFilter.value}&year=${yearFilter.value}`, {
       headers: { "x-role": role }
     })
       .then(res => res.json())
       .then(students => {
+        STUDENTS = students;
 
-        if (students.length === 0) {
-          marksTableBody.innerHTML = `<tr><td colspan="6">No students found</td></tr>`;
+        if (STUDENTS.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6">No students found</td></tr>`;
           return;
         }
 
-        students.forEach(std => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${std.name}</td>
-            <td>${selectedSubject}</td>
-            <td contenteditable="${role === 'admin' || role === 'teacher'}">0</td>
-            <td>${std.department}</td>
-            <td>${std.year}</td>
-            ${
-              role === "admin" || role === "teacher"
-                ? `<td><button class="save-mark-btn">Save</button></td>`
-                : `<td></td>`
-            }
-          `;
-          marksTableBody.appendChild(row);
-        });
-
-        fetch(`${BASE_URL}/marks?department=${selectedDepartment}&year=${selectedYear}&subject=${selectedSubject}`, {
+        /* ---- existing marks ---- */
+        fetch(`${BASE_URL}/marks?department=${deptFilter.value}&year=${yearFilter.value}&subject=${subjectFilter.value}`, {
           headers: { "x-role": role }
         })
           .then(res => res.json())
           .then(existing => {
-
-            const rows = marksTableBody.querySelectorAll("tr");
-
-            existing.forEach(m => {
-              rows.forEach(r => {
-                if (r.children[0].textContent === m.student_name) {
-                  r.children[2].textContent = m.marks;
-                  r.dataset.id = m.id;
-                }
-              });
-            });
+            MARKS = existing || [];
+            renderRows();
           });
       });
   }
 
-  marksTableBody.addEventListener("click", (e) => {
+  function renderRows() {
+    tbody.innerHTML = "";
 
+    STUDENTS.forEach(s => {
+      const markRow = MARKS.find(
+        m => m.student_id === s.id && m.subject === subjectFilter.value
+      );
+
+      const tr = document.createElement("tr");
+      tr.dataset.studentId = s.id;
+      tr.dataset.markId = markRow ? markRow.id : "";
+
+      tr.innerHTML = `
+        <td>${s.name}</td>
+        <td>${subjectFilter.value}</td>
+        <td contenteditable="${role !== 'student'}">
+          ${markRow ? markRow.marks : ""}
+        </td>
+        <td>${s.department}</td>
+        <td>${s.year}</td>
+        ${
+          role === "admin" || role === "teacher"
+            ? `<td><button class="save-mark-btn">Save</button></td>`
+            : `<td></td>`
+        }
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* ================= SAVE ================= */
+  tbody.addEventListener("click", e => {
     if (!e.target.classList.contains("save-mark-btn")) return;
 
     const row = e.target.closest("tr");
 
-    const student_name = row.children[0].textContent;
-    const subject = row.children[1].textContent;
+    const student_id = row.dataset.studentId;
+    const mark_id = row.dataset.markId || null;
     const marks = row.children[2].textContent.trim();
-    const department = row.children[3].textContent;
-    const year = row.children[4].textContent;
 
-    const payload = { student_name, subject, marks, department, year };
+    if (marks === "" || isNaN(marks)) {
+      alert("Enter valid marks");
+      return;
+    }
+
+    const payload = {
+      id: mark_id,
+      student_id,
+      student_name: row.children[0].textContent,
+      department: row.children[3].textContent,
+      year: row.children[4].textContent,
+      subject: row.children[1].textContent,
+      marks
+    };
 
     fetch(`${BASE_URL}/marks`, {
       method: "POST",
@@ -140,15 +141,18 @@ document.addEventListener("DOMContentLoaded", () => {
         "Content-Type": "application/json",
         "x-role": role
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload)
     })
       .then(res => res.json())
-      .then(msg => {
-        alert(msg.message);
+      .then(r => {
+        if (!r.success) throw new Error();
+        alert("Marks saved");
         loadMarksTable();
-      });
+      })
+      .catch(() => alert("Save failed"));
   });
 
+  /* ================= STUDENT VIEW ================= */
   if (role === "student") {
     loadBtn.style.display = "none";
   }

@@ -1,15 +1,66 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const tbody = document.querySelector("#library-table tbody");
+  const addBtn = document.getElementById("add-book");
   const role = localStorage.getItem("role");
 
-  loadLibrary();
+  let BOOKS = []; // ✅ cache
 
-  document.getElementById("add-book").addEventListener("click", () => {
-    const title = prompt("Enter book title:");
-    const author = prompt("Enter author:");
-    const subject = prompt("Enter subject:");
+  /* ================= LOAD ================= */
+  function loadLibrary() {
+    fetch(`${BASE_URL}/library`, {
+      headers: { "x-role": role }
+    })
+      .then(res => res.json())
+      .then(data => {
+        BOOKS = Array.isArray(data) ? data : [];
+        renderLibrary();
+      })
+      .catch(err => {
+        console.error("Library load failed:", err);
+        tbody.innerHTML = `<tr><td colspan="4">Failed to load</td></tr>`;
+      });
+  }
+
+  function renderLibrary() {
+    tbody.innerHTML = "";
+
+    const valid = BOOKS.filter(b =>
+      b &&
+      b.id &&
+      b.title
+    );
+
+    if (valid.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4">No books found</td></tr>`;
+      return;
+    }
+
+    valid.forEach(b => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${b.title}</td>
+        <td>${b.author || ""}</td>
+        <td>${b.subject || ""}</td>
+        <td>
+          ${role === "admin" ? `
+            <button class="action-btn edit" data-id="${b.id}">Edit</button>
+            <button class="action-btn delete" data-id="${b.id}">Delete</button>
+          ` : ""}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* ================= ADD ================= */
+  function addBook() {
+    const title = prompt("Book title:");
+    const author = prompt("Author:");
+    const subject = prompt("Subject:");
 
     if (!title || !author || !subject) {
-      return alert("All fields are required.");
+      alert("All fields required");
+      return;
     }
 
     fetch(`${BASE_URL}/library`, {
@@ -18,60 +69,27 @@ document.addEventListener("DOMContentLoaded", () => {
         "Content-Type": "application/json",
         "x-role": role
       },
-      body: JSON.stringify({ title, author, subject }),
+      body: JSON.stringify({ title, author, subject })
     })
       .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert("Book added.");
-          loadLibrary();
-        }
-      });
-  });
-});
+      .then(r => {
+        if (!r.success) throw new Error();
+        alert("Book added");
+        loadLibrary();
+      })
+      .catch(() => alert("Add failed"));
+  }
 
-function loadLibrary() {
-  const role = localStorage.getItem("role");
+  /* ================= EDIT / DELETE ================= */
+  tbody.addEventListener("click", e => {
+    const id = e.target.dataset.id;
+    if (!id) return;
 
-  fetch(`${BASE_URL}/library`, {
-    headers: {
-      "x-role": role
-    }
-  })
-    .then(res => res.json())
-    .then(data => {
-      const tbody = document.querySelector("#library-table tbody");
-      tbody.innerHTML = "";
+    const book = BOOKS.find(b => String(b.id) === id);
+    if (!book) return alert("Invalid book");
 
-      data.forEach(book => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${book.title}</td>
-          <td>${book.author}</td>
-          <td>${book.subject}</td>
-          <td>
-            <button class="action-btn edit" onclick="editBook(${book.id})">Edit</button>
-            <button class="action-btn delete" onclick="deleteBook(${book.id})">Delete</button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-    });
-}
-
-function editBook(id) {
-  const role = localStorage.getItem("role");
-
-  fetch(`${BASE_URL}/library`, {
-    headers: {
-      "x-role": role
-    }
-  })
-    .then(res => res.json())
-    .then(books => {
-      const book = books.find(b => b.id === id);
-      if (!book) return alert("Book not found.");
-
+    /* -------- EDIT -------- */
+    if (e.target.classList.contains("edit")) {
       const title = prompt("Edit title:", book.title);
       const author = prompt("Edit author:", book.author);
       const subject = prompt("Edit subject:", book.subject);
@@ -84,34 +102,42 @@ function editBook(id) {
           "Content-Type": "application/json",
           "x-role": role
         },
-        body: JSON.stringify({ title, author, subject }),
+        body: JSON.stringify({ title, author, subject })
       })
         .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            alert("Book updated.");
-            loadLibrary();
-          }
-        });
-    });
-}
-
-function deleteBook(id) {
-  const role = localStorage.getItem("role");
-
-  if (!confirm("Delete this book?")) return;
-
-  fetch(`${BASE_URL}/library/${id}`, {
-    method: "DELETE",
-    headers: {
-      "x-role": role
+        .then(r => {
+          if (!r.success) throw new Error();
+          alert("Book updated");
+          loadLibrary();
+        })
+        .catch(() => alert("Update failed"));
     }
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        alert("Book deleted.");
-        loadLibrary();
-      }
-    });
-}
+
+    /* -------- DELETE -------- */
+    if (e.target.classList.contains("delete")) {
+      if (!confirm("Delete this book?")) return;
+
+      fetch(`${BASE_URL}/library/${id}`, {
+        method: "DELETE",
+        headers: { "x-role": role }
+      })
+        .then(res => res.json())
+        .then(r => {
+          if (!r.success) throw new Error();
+          alert("Book deleted");
+          loadLibrary();
+        })
+        .catch(() => alert("Delete failed"));
+    }
+  });
+
+  /* ================= ROLE CONTROL ================= */
+  if (role === "admin") {
+    addBtn.style.display = "inline-block";
+    addBtn.onclick = addBook;
+  } else {
+    addBtn.style.display = "none";
+  }
+
+  loadLibrary();
+});

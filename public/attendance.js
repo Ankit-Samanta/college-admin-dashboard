@@ -1,3 +1,5 @@
+let ATTENDANCE_CACHE = [];
+
 document.addEventListener("DOMContentLoaded", () => {
   const role = localStorage.getItem("role");
 
@@ -6,10 +8,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const loadBtn = document.getElementById("load-attendance");
   if (loadBtn) {
-    loadBtn.addEventListener("click", loadAttendanceTable);
-
     if (role !== "admin" && role !== "teacher") {
       loadBtn.style.display = "none";
+    } else {
+      loadBtn.addEventListener("click", loadAttendanceTable);
     }
   }
 });
@@ -25,17 +27,22 @@ function loadDepartments() {
   fetch(`${BASE_URL}/departments`)
     .then(r => r.json())
     .then(data => {
+      if (!Array.isArray(data)) return;
+
       const deptFilter = document.getElementById("attendance-filter-dept");
       if (!deptFilter) return;
 
       deptFilter.innerHTML = `<option value="">Select Department</option>`;
       data.forEach(d => {
-        if (d && d.name) {
-          deptFilter.innerHTML += `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`;
+        if (d?.name) {
+          deptFilter.insertAdjacentHTML(
+            "beforeend",
+            `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`
+          );
         }
       });
     })
-    .catch(err => console.error("Failed to load departments:", err));
+    .catch(err => console.error("Departments load failed:", err));
 }
 
 async function loadAttendanceTable() {
@@ -44,111 +51,104 @@ async function loadAttendanceTable() {
   const date = document.getElementById("attendance-date")?.value;
   const role = localStorage.getItem("role");
 
-  if (!dept || !year) {
-    alert("Select department and year");
+  if (!dept || !year || !date) {
+    alert("Select department, year and date");
     return;
   }
 
   const tbody = document.querySelector("#attendance-table tbody");
   tbody.innerHTML = `<tr><td colspan="4">Loading...</td></tr>`;
+  removeSaveAllButton();
 
   try {
     const [studentsRes, attendanceRes] = await Promise.all([
-      fetch(
-        `${BASE_URL}/attendance/students?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}`
-      ),
-      fetch(
-        `${BASE_URL}/attendance?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}&date=${encodeURIComponent(date)}`
-      )
+      fetch(`${BASE_URL}/attendance/students?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}`, {
+        headers: { "x-role": role }
+      }),
+      fetch(`${BASE_URL}/attendance?department=${encodeURIComponent(dept)}&year=${encodeURIComponent(year)}&date=${encodeURIComponent(date)}`, {
+        headers: { "x-role": role }
+      })
     ]);
 
     const students = await studentsRes.json();
     const records = await attendanceRes.json();
 
-    const map = {};
-    (records || []).forEach(r => {
-      map[r.student_id] = r;
+    if (!Array.isArray(students)) throw new Error("Students not array");
+    if (!Array.isArray(records)) throw new Error("Attendance not array");
+
+    const recordMap = {};
+    records.forEach(r => {
+      if (r.student_id) recordMap[r.student_id] = r;
     });
 
     tbody.innerHTML = "";
-
-    if (!students || students.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4">No students found</td></tr>`;
-      removeSaveAllButton();
-      return;
-    }
+    ATTENDANCE_CACHE = [];
 
     students.forEach(student => {
+      if (!student.id || !student.name) return;
+
       const tr = document.createElement("tr");
       tr.dataset.studentId = student.id;
 
-      const existing = map[student.id];
-      const editable = (role === "admin" || role === "teacher");
+      const existing = recordMap[student.id];
+      const editable = role === "admin" || role === "teacher";
 
-      const nameTd = document.createElement("td");
-      nameTd.textContent = student.name;
-      tr.appendChild(nameTd);
+      tr.innerHTML = `
+        <td>${escapeHtml(student.name)}</td>
+        <td>
+          ${
+            editable
+              ? `<select class="attendance-status">
+                   <option value="Absent">Absent</option>
+                   <option value="Present">Present</option>
+                 </select>`
+              : escapeHtml(existing?.status || "Not marked")
+          }
+        </td>
+        <td>${escapeHtml(dept)}</td>
+        <td>${escapeHtml(year)}</td>
+      `;
 
-      const statusTd = document.createElement("td");
       if (editable) {
-        const sel = document.createElement("select");
-        sel.className = "attendance-status";
-        sel.innerHTML = `
-          <option value="Absent">Absent</option>
-          <option value="Present">Present</option>
-        `;
-        sel.value = existing?.status || "Absent";
-        statusTd.appendChild(sel);
-      } else {
-        statusTd.textContent = existing?.status || "Not marked";
+        tr.querySelector("select").value = existing?.status || "Absent";
       }
-      tr.appendChild(statusTd);
-
-      const deptTd = document.createElement("td");
-      deptTd.textContent = dept;
-      tr.appendChild(deptTd);
-
-      const yearTd = document.createElement("td");
-      yearTd.textContent = year;
-      tr.appendChild(yearTd);
 
       tbody.appendChild(tr);
+      ATTENDANCE_CACHE.push(student);
     });
+
+    if (ATTENDANCE_CACHE.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4">No valid students found</td></tr>`;
+      return;
+    }
 
     addSaveAllButton();
   } catch (err) {
-    console.error("Error loading attendance:", err);
-    tbody.innerHTML = `<tr><td colspan="4">Failed to load. Check console.</td></tr>`;
-    removeSaveAllButton();
+    console.error("Attendance load error:", err);
+    tbody.innerHTML = `<tr><td colspan="4">Failed to load attendance</td></tr>`;
   }
 }
 
 function addSaveAllButton() {
   const role = localStorage.getItem("role");
+  if (role !== "admin" && role !== "teacher") return;
+
   const container = document.querySelector("#attendance-table").parentElement;
-  let btn = document.getElementById("save-all-attendance");
+  if (document.getElementById("save-all-attendance")) return;
 
-  if (role === "admin" || role === "teacher") {
-    if (!btn) {
-      btn = document.createElement("button");
-      btn.id = "save-all-attendance";
-      btn.textContent = "Save All Attendance";
-      btn.style.marginTop = "10px";
+  const btn = document.createElement("button");
+  btn.id = "save-all-attendance";
+  btn.textContent = "Save All Attendance";
+  btn.style.marginTop = "10px";
 
-      btn.addEventListener("click", () => {
-        const dept = document.getElementById("attendance-filter-dept").value;
-        const year = document.getElementById("attendance-filter-year").value;
-        const date = document.getElementById("attendance-date").value;
-        saveAllAttendance(dept, year, date);
-      });
+  btn.onclick = () => {
+    const dept = document.getElementById("attendance-filter-dept").value;
+    const year = document.getElementById("attendance-filter-year").value;
+    const date = document.getElementById("attendance-date").value;
+    saveAllAttendance(dept, year, date);
+  };
 
-      container.appendChild(btn);
-    } else {
-      btn.style.display = "inline-block";
-    }
-  } else if (btn) {
-    btn.style.display = "none";
-  }
+  container.appendChild(btn);
 }
 
 function removeSaveAllButton() {
@@ -157,38 +157,34 @@ function removeSaveAllButton() {
 }
 
 async function saveAllAttendance(dept, year, date) {
-  const tbodyRows = document.querySelectorAll("#attendance-table tbody tr");
-  const btn = document.getElementById("save-all-attendance");
   const role = localStorage.getItem("role");
+  const btn = document.getElementById("save-all-attendance");
 
-  btn.disabled = true;
-  btn.textContent = "Saving...";
-
+  const rows = document.querySelectorAll("#attendance-table tbody tr");
   const records = [];
-  tbodyRows.forEach(row => {
-    const sel = row.querySelector(".attendance-status");
-    if (!sel) return;
 
+  rows.forEach(row => {
     const studentId = row.dataset.studentId;
-    const name = row.cells[0]?.innerText?.trim();
-    const status = sel.value;
+    const statusEl = row.querySelector(".attendance-status");
+    if (!studentId || !statusEl) return;
 
     records.push({
       student_id: studentId,
-      student_name: name,
+      student_name: row.cells[0].innerText.trim(),
       department: dept,
       year,
       date,
-      status
+      status: statusEl.value
     });
   });
 
   if (!records.length) {
-    alert("No attendance to save.");
-    btn.disabled = false;
-    btn.textContent = "Save All Attendance";
+    alert("Nothing to save");
     return;
   }
+
+  btn.disabled = true;
+  btn.textContent = "Saving...";
 
   try {
     const res = await fetch(`${BASE_URL}/attendance/bulk`, {
@@ -203,11 +199,11 @@ async function saveAllAttendance(dept, year, date) {
     const body = await res.json();
     if (!res.ok || !body.success) throw new Error("Save failed");
 
-    alert("Attendance saved successfully.");
+    alert("Attendance saved");
     await loadAttendanceTable();
   } catch (err) {
-    console.error("Save error:", err);
-    alert("Failed to save attendance.");
+    console.error("Save attendance error:", err);
+    alert("Failed to save attendance");
   }
 
   btn.disabled = false;

@@ -1,13 +1,20 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
-
 document.addEventListener("DOMContentLoaded", () => {
+
+  const role = localStorage.getItem("role");
+  if (!role) {
+    window.location.href = "login.html";
+    return;
+  }
+
   const sidebarLinks = document.querySelectorAll(".sidebar ul li a");
   const sections = document.querySelectorAll(".section");
 
+  /* ================= NAVIGATION ================= */
   function showSection(hash) {
-    sections.forEach(section => section.classList.add("hidden"));
-    const targetSection = document.querySelector(hash);
-    if (targetSection) targetSection.classList.remove("hidden");
+    sections.forEach(sec => sec.classList.add("hidden"));
+
+    const target = document.querySelector(hash);
+    if (target) target.classList.remove("hidden");
   }
 
   showSection(window.location.hash || "#dashboard");
@@ -16,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
     link.addEventListener("click", e => {
       e.preventDefault();
       const hash = link.getAttribute("href");
-      history.pushState(null, null, hash);
+      history.pushState(null, "", hash);
       showSection(hash);
     });
   });
@@ -25,16 +32,24 @@ document.addEventListener("DOMContentLoaded", () => {
     showSection(window.location.hash || "#dashboard");
   });
 
-  // Dashboard counts fetch
+  /* ================= DASHBOARD COUNTS ================= */
   fetch(`${BASE_URL}/dashboard/counts`, {
-    headers: { "x-role": localStorage.getItem("role") }
+    headers: { "x-role": role }
   })
     .then(res => res.json())
     .then(data => {
-      document.getElementById("total-students").innerText = data.students || 0;
-      document.getElementById("total-teachers").innerText = data.teachers || 0;
-      document.getElementById("total-employees").innerText = data.employees || 0;
-      document.getElementById("total-announcements").innerText = data.announcements || 0;
+      setText("total-students", data.students);
+      setText("total-teachers", data.teachers);
+      setText("total-employees", data.employees);
+      setText("total-announcements", data.announcements);
     })
-    .catch(err => console.error("Failed to load dashboard counts:", err));
+    .catch(err => {
+      console.error("Dashboard count error:", err);
+    });
+
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = value ?? 0;
+  }
+
 });

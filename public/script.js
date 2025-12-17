@@ -1,65 +1,68 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Module Add buttons - handled in respective module JS files
-    if (document.getElementById('add-student')) document.getElementById('add-student').addEventListener('click', addStudent);
-    if (document.getElementById('add-teacher')) document.getElementById('add-teacher').addEventListener('click', addTeacher);
-    if (document.getElementById('add-department')) document.getElementById('add-department').addEventListener('click', addDepartment);
-    if (document.getElementById('add-attendance')) document.getElementById('add-attendance').addEventListener('click', addAttendance);
-    if (document.getElementById('upload-materials-btn')) document.getElementById('upload-materials-btn').addEventListener('click', uploadMaterials);
-    if (document.getElementById('logout')) document.getElementById('logout').addEventListener('click', logout);
-});
+    const role = (localStorage.getItem("role") || "").toLowerCase();
+    const userStr = localStorage.getItem("user");
+    const user = userStr ? JSON.parse(userStr) : { username: "User" };
 
-// Placeholder functions - actual logic handled in respective module JS files
-function addStudent() {
-    alert('Student module logic is handled in student.js');
-}
-
-function addTeacher() {
-    alert('Teacher module logic is handled in teacher.js');
-}
-
-function addDepartment() {
-    alert('Department module logic is handled in department.js');
-}
-
-function addAttendance() {
-    alert('Attendance module logic is handled in attendance.js');
-}
-
-// Upload Study Materials
-function uploadMaterials() {
-    const files = document.getElementById('upload-materials')?.files;
-    if (!files || files.length === 0) return alert('No files selected.');
-
-    const formData = new FormData();
-    for (let file of files) {
-        formData.append('file', file);
+    if (!role) {
+        // Redirect to login if not logged in
+        window.location.href = "login.html";
+        return;
     }
 
-    fetch('/studymaterials/upload', {
-        method: 'POST',
-        headers: {
-            'x-role': localStorage.getItem('role')
-        },
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            alert('Materials uploaded successfully.');
-            if (typeof loadStudyMaterials === 'function') loadStudyMaterials(); // Refresh materials list
-        } else {
-            alert('Upload failed: ' + (data.error || 'Unknown error'));
-        }
-    })
-    .catch(err => {
-        console.error('Upload error:', err);
-        alert('Upload failed due to network error.');
-    });
-}
+    // Display welcome message
+    const welcomeEl = document.getElementById("welcome-user");
+    if (welcomeEl) welcomeEl.textContent = `Welcome, ${user.username}`;
 
-// Logout function
-function logout() {
-    localStorage.removeItem("role");
-    localStorage.removeItem("user");
-    window.location.href = 'login.html';
-}
+    // Role-based module buttons
+    const adminButtons = [
+        "add-student",
+        "add-teacher",
+        "add-employee",
+        "add-department",
+        "add-course",
+        "add-book",
+        "add-announcement"
+    ];
+
+    adminButtons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.style.display = role === "admin" ? "inline-block" : "none";
+    });
+
+    // Hide study material form for students
+    const studyForm = document.getElementById("studyMaterialForm");
+    if (studyForm) studyForm.style.display = role === "student" ? "none" : "";
+
+    // Hide load buttons for non-admin/teacher if needed
+    const loadMarksBtn = document.getElementById("load-marks-btn");
+    if (loadMarksBtn) loadMarksBtn.style.display = role === "student" ? "none" : "";
+
+    const loadAttendanceBtn = document.getElementById("load-attendance");
+    if (loadAttendanceBtn) loadAttendanceBtn.style.display = role === "student" ? "none" : "";
+
+    // Logout functionality
+    const logoutBtn = document.getElementById("logout");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            localStorage.removeItem("role");
+            localStorage.removeItem("user");
+            window.location.href = "login.html";
+        });
+    }
+
+    // Remove action buttons in tables for non-admins
+    function removeActionButtons() {
+        if (role !== "admin") {
+            document.querySelectorAll(".action-btn").forEach(btn => btn.remove());
+        }
+    }
+
+    removeActionButtons();
+
+    // Observe table changes dynamically
+    const tableObserver = new MutationObserver(() => removeActionButtons());
+    document.querySelectorAll("table tbody").forEach(tb => {
+        tableObserver.observe(tb, { childList: true, subtree: true });
+    });
+});
