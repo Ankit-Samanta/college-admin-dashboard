@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const role = localStorage.getItem("role");
   const addBtn = document.getElementById("add-student");
 
-  loadDepartments();
+ loadStudentDepartments();
   loadStudents();
 
   document.getElementById("student-filter-dept").addEventListener("change", loadStudents);
@@ -27,8 +27,9 @@ function formatYear(y) {
 }
 
 /* ================= DEPARTMENTS ================= */
-function loadDepartments() {
+function loadStudentDepartments() {
   const filter = document.getElementById("student-filter-dept");
+
   fetch(`${BASE_URL}/departments`)
     .then(res => res.json())
     .then(depts => {
@@ -39,8 +40,6 @@ function loadDepartments() {
     })
     .catch(err => console.error("Failed to load departments:", err));
 }
-
-
 /* ================= LOAD STUDENTS ================= */
 function loadStudents() {
   const dept = document.getElementById("student-filter-dept").value;
