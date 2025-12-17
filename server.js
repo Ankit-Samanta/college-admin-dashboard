@@ -86,11 +86,12 @@ app.get("/dashboard/counts", async (req, res) => {
   }
 });
 
-// STUDENTS
+// ================= STUDENTS =================
 
+// GET ALL STUDENTS (FILTERABLE)
 app.get("/students", allowRoles("admin", "teacher"), async (req, res) => {
   try {
-    let query = "SELECT * FROM studenttable WHERE 1=1";
+    let query = "SELECT id, name, roll, email, department, year FROM studenttable WHERE 1=1";
     const params = [];
 
     if (req.query.department) {
@@ -103,31 +104,41 @@ app.get("/students", allowRoles("admin", "teacher"), async (req, res) => {
       params.push(formatYearLabel(req.query.year));
     }
 
-    const results = await db.query(query, params);
-    res.json(results);
+    // ✅ FIX: destructure result
+    const [students] = await db.query(query, params);
+    res.json(students);
   } catch (err) {
     console.error("Fetch students error:", err);
-    res.status(500).json({ error: "Database error" });
+    res.status(500).json({ message: "Database error" });
   }
 });
 
+// ADD STUDENT
 app.post("/students", allowRoles("admin"), async (req, res) => {
   try {
     const { name, roll, email, department, year, password } = req.body;
+
     if (!name || !roll || !email || !department || !year || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const formattedYear = formatYearLabel(year);
     const hashedPassword = bcrypt.hashSync(password, 10);
+    const formattedYear = formatYearLabel(year);
 
     const sql = `
-      INSERT INTO studenttable 
-      (name, roll, email, department, year, password) 
+      INSERT INTO studenttable (name, roll, email, department, year, password)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
 
-    await db.query(sql, [name, roll, email, department, formattedYear, hashedPassword]);
+    await db.query(sql, [
+      name,
+      roll,
+      email,
+      department,
+      formattedYear,
+      hashedPassword
+    ]);
+
     res.json({ message: "Student added successfully" });
   } catch (err) {
     console.error("Student insert error:", err);
@@ -135,29 +146,36 @@ app.post("/students", allowRoles("admin"), async (req, res) => {
   }
 });
 
-app.put("/students/:roll", allowRoles("admin"), async (req, res) => {
+// UPDATE STUDENT (BY ID)
+app.put("/students/:id", allowRoles("admin"), async (req, res) => {
   try {
     const { name, email, department, year, password } = req.body;
+
     if (!name || !email || !department || !year) {
       return res.status(400).json({ message: "Missing fields" });
     }
 
-    const formattedYear = formatYearLabel(year);
     const fields = ["name = ?", "email = ?", "department = ?", "year = ?"];
-    const values = [name, email, department, formattedYear];
+    const values = [
+      name,
+      email,
+      department,
+      formatYearLabel(year)
+    ];
 
     if (password && password.trim() !== "") {
       fields.push("password = ?");
-      const hashedPassword = bcrypt.hashSync(password, 10);
-      values.push(hashedPassword);
+      values.push(bcrypt.hashSync(password, 10));
     }
 
-    values.push(req.params.roll);
-    const sql = `UPDATE studenttable SET ${fields.join(", ")} WHERE roll = ?`;
+    values.push(req.params.id);
 
-    const result = await db.query(sql, values);
+    const sql = `UPDATE studenttable SET ${fields.join(", ")} WHERE id = ?`;
+
+    const [result] = await db.query(sql, values);
+
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Student not found or update failed" });
+      return res.status(404).json({ message: "Student not found" });
     }
 
     res.json({ message: "Student updated successfully" });
@@ -167,13 +185,18 @@ app.put("/students/:roll", allowRoles("admin"), async (req, res) => {
   }
 });
 
-app.delete("/students/:roll", allowRoles("admin"), async (req, res) => {
+// DELETE STUDENT (BY ID)
+app.delete("/students/:id", allowRoles("admin"), async (req, res) => {
   try {
-    const sql = "DELETE FROM studenttable WHERE roll = ?";
-    const result = await db.query(sql, [req.params.roll]);
+    const [result] = await db.query(
+      "DELETE FROM studenttable WHERE id = ?",
+      [req.params.id]
+    );
+
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Failed to delete student" });
+      return res.status(404).json({ message: "Student not found" });
     }
+
     res.json({ message: "Student deleted successfully" });
   } catch (err) {
     console.error("Student delete error:", err);
