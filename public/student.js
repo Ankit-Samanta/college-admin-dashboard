@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loadStudentDepartments();
 
-  // ✅ ONLY admin & teacher can load students
+  // ONLY admin & teacher can load students
   if (role === "admin" || role === "teacher") {
     loadStudents();
 
@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ?.addEventListener("change", loadStudents);
   }
 
-  // ✅ admin-only add button
+  // admin-only add button
   if (role === "admin") {
     addBtn.style.display = "inline-block";
     addBtn.addEventListener("click", addStudent);

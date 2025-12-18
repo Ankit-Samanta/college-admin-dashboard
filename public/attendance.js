@@ -15,7 +15,6 @@ if (role === "admin" || role === "teacher") {
   if (loadBtn) loadBtn.style.display = "none";
   hideAttendanceFilters();
 
-  // 🔥 IMPORTANT: reload attendance when date changes
   document
     .getElementById("attendance-date")
     ?.addEventListener("change", loadStudentAttendance);

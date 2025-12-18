@@ -166,40 +166,48 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function loadStudentMarks() {
-    if (!deptFilter.value || !yearFilter.value || !subjectFilter.value) return;
+  if (!deptFilter.value || !yearFilter.value || !subjectFilter.value) return;
 
-    tbody.innerHTML = `<tr><td colspan="5">Loading...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="5">Loading...</td></tr>`;
 
-    try {
-      const res = await fetch(
-        `${BASE_URL}/marks?department=${deptFilter.value}&year=${yearFilter.value}&subject=${subjectFilter.value}`,
-        { headers: { "x-role": role } }
-      );
+  try {
+    const res = await fetch(
+      `${BASE_URL}/marks?department=${deptFilter.value}&year=${yearFilter.value}&subject=${subjectFilter.value}`,
+      { headers: { "x-role": role } }
+    );
 
-      const json = await res.json();
-      const data = json.data || [];
+    const json = await res.json();
+    let data = Array.isArray(json.data) ? json.data : [];
 
-      tbody.innerHTML = "";
+    // ✅ FRONTEND SAFETY FILTER
+    data = data.filter(m =>
+      m.student_name &&
+      typeof m.student_name === "string" &&
+      m.student_name.trim() !== ""
+    );
 
-      if (!data.length) {
-        tbody.innerHTML = `<tr><td colspan="5">No marks found</td></tr>`;
-        return;
-      }
+    tbody.innerHTML = "";
 
-      data.forEach(m => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="5">No marks found</td></tr>`;
+      return;
+    }
+
+    data.forEach(m => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
         <td>${m.student_name}</td>
         <td>${m.subject}</td>
         <td>${m.marks}</td>
         <td>${m.department}</td>
         <td>${m.year}</td>
       `;
-        tbody.appendChild(tr);
-      });
-    } catch (err) {
-      console.error("Student marks error:", err);
-      tbody.innerHTML = `<tr><td colspan="5">Failed to load marks</td></tr>`;
-    }
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error("Student marks error:", err);
+    tbody.innerHTML = `<tr><td colspan="5">Failed to load marks</td></tr>`;
   }
+}
+
 });

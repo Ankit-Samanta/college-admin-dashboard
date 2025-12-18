@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const addBtn = document.getElementById("add-employee");
   const role = localStorage.getItem("role");
 
-  let EMPLOYEES = []; // ✅ cache
+  let EMPLOYEES = []; 
 
   /* ================= LOAD ================= */
   function loadEmployees() {

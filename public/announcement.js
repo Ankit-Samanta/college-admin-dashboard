@@ -4,13 +4,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const role = localStorage.getItem("role");
   const addBtn = document.getElementById("add-announcement");
 
-  if (addBtn && role === "student") {
-    addBtn.style.display = "none";
-  }
+  if (!addBtn) return;
 
-  if (addBtn && (role === "admin" || role === "teacher")) {
-    addBtn.addEventListener("click", addAnnouncement);
-  }
+if (role === "admin" || role === "teacher") {
+  addBtn.style.display = "inline-block";   
+  addBtn.addEventListener("click", addAnnouncement);
+} else {
+  addBtn.style.display = "none";
+}
+
 
   loadAnnouncements();
 });

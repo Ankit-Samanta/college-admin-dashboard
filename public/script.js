@@ -4,12 +4,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const user = userStr ? JSON.parse(userStr) : { username: "User" };
 
     if (!role) {
-        // Redirect to login if not logged in
+        // Redirected to login if not logged in
         window.location.href = "login.html";
         return;
     }
 
-    // Display welcome message
+    
     const welcomeEl = document.getElementById("welcome-user");
     if (welcomeEl) welcomeEl.textContent = `Welcome, ${user.username}`;
 

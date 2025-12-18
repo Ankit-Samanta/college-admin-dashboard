@@ -102,7 +102,7 @@ app.get("/students", allowRoles("admin", "teacher"), async (req, res) => {
       params.push(formatYearLabel(req.query.year));
     }
 
-    // ✅ FIX: destructure result
+    // fixed estructure result
     const [students] = await db.query(query, params);
     res.json(students);
   } catch (err) {
@@ -226,7 +226,7 @@ app.delete("/students/:id", allowRoles("admin"), async (req, res) => {
 app.get("/teachers", async (req, res) => {
   try {
     const [rows] = await db.query("SELECT * FROM teachertable");
-    res.json(rows); // ✅ must be array
+    res.json(rows); 
   } catch (err) {
     console.error("Fetch teachers error:", err);
     res.status(500).json({ message: "Database error" });
@@ -321,7 +321,7 @@ app.delete("/teachers/:id", allowRoles("admin"), async (req, res) => {
 app.get("/employees", async (req, res) => {
   try {
     const [rows] = await db.query("SELECT * FROM employeetable");
-    res.json(rows); // ✅ must be array
+    res.json(rows); 
   } catch (err) {
     console.error("Fetch employees error:", err);
     res.status(500).json({ message: "Database error" });
@@ -434,7 +434,7 @@ app.delete("/employees/:id", allowRoles("admin"), async (req, res) => {
 app.get("/departments", async (req, res) => {
   try {
     const [rows] = await db.query("SELECT * FROM departmenttable");
-    res.json(rows); // ✅ must be array
+    res.json(rows); 
   } catch (err) {
     console.error("Error fetching departments:", err);
     res.status(500).json({ message: "Database error" });
@@ -561,7 +561,7 @@ app.get("/courses", async (req, res) => {
     }
 
     const [rows] = await db.query(sql, params);
-    res.json(rows); // ✅ MUST be array
+    res.json(rows); 
   } catch (err) {
     console.error("Error fetching courses:", err);
     res.status(500).json({ message: "Database error" });
@@ -647,7 +647,7 @@ app.get(
   allowRoles("admin", "teacher", "student"),
   async (req, res) => {
     try {
-      // ✅ FIX: destructure rows
+      // fixed destructure rows
       const [rows] = await db.query(
         "SELECT * FROM studymaterialtable ORDER BY upload_date DESC"
       );
@@ -682,7 +682,7 @@ app.post(
       const filename = req.file.filename;
       const upload_date = new Date().toISOString().split("T")[0];
 
-      // ✅ FIX: destructure result
+      // fixed  destructure result
       const [result] = await db.query(
         `
         INSERT INTO studymaterialtable
@@ -762,7 +762,7 @@ app.get(
   allowRoles("admin", "teacher", "student"),
   async (req, res) => {
     try {
-      // ✅ FIX: destructure rows
+      // fixed destructure rows
       const [rows] = await db.query(
         "SELECT * FROM librarytable ORDER BY id DESC"
       );
@@ -794,7 +794,7 @@ app.post(
         });
       }
 
-      // ✅ FIX: destructure result
+      // fixed destructure result
       const [result] = await db.query(
         `
         INSERT INTO librarytable (title, author, subject)
@@ -834,7 +834,7 @@ app.put(
         });
       }
 
-      // ✅ FIX: destructure result
+      // fixed destructure result
       const [result] = await db.query(
         `
         UPDATE librarytable
@@ -872,7 +872,7 @@ app.delete(
   allowRoles("admin"),
   async (req, res) => {
     try {
-      // ✅ FIX: destructure result
+      // fixed destructure result
       const [result] = await db.query(
         "DELETE FROM librarytable WHERE id = ?",
         [req.params.id]
@@ -907,6 +907,7 @@ app.delete(
 app.get("/marks", allowRoles("admin", "teacher", "student"), async (req, res) => {
   try {
     const { department, year, subject } = req.query;
+
     const role = req.user?.role;
     const studentName = req.user?.name;
 
@@ -928,13 +929,19 @@ app.get("/marks", allowRoles("admin", "teacher", "student"), async (req, res) =>
       params.push(subject);
     }
 
-    // 🔐 students can only see their own marks
+    // student ONLY HIS OWN MARKS
     if (role === "student") {
+      if (!studentName) {
+        return res.status(401).json({
+          success: false,
+          error: "Unauthorized: student identity missing"
+        });
+      }
+
       sql += " AND student_name = ?";
       params.push(studentName);
     }
 
-    // ✅ FIX: destructure mysql2 result
     const [rows] = await db.query(sql, params);
 
     res.json({ success: true, data: rows });
@@ -943,7 +950,6 @@ app.get("/marks", allowRoles("admin", "teacher", "student"), async (req, res) =>
     res.status(500).json({ success: false, error: "Failed to fetch marks" });
   }
 });
-
 
 // GET STUDENTS FOR MARK ENTRY
 app.get("/marks/students", allowRoles("admin", "teacher"), async (req, res) => {
@@ -961,7 +967,7 @@ app.get("/marks/students", allowRoles("admin", "teacher"), async (req, res) => {
       AND TRIM(LOWER(year)) = LOWER(TRIM(?))
     `;
 
-    // ✅ FIX: destructure mysql2 result
+    // Fixed destructure mysql2 result
     const [rows] = await db.query(sql, [department, year]);
 
     res.json({ success: true, data: rows });
@@ -1023,7 +1029,7 @@ app.get("/attendance", allowRoles("admin", "teacher", "student"), async (req, re
       params.push(date);
     }
 
-    // ✅ FIX: destructure rows
+    // fixed  destructure rows
     const [rows] = await db.query(sql, params);
 
     res.json({ success: true, data: rows });
@@ -1050,7 +1056,7 @@ app.get("/attendance/students", allowRoles("admin", "teacher"), async (req, res)
       AND TRIM(LOWER(year)) = LOWER(TRIM(?))
     `;
 
-    // ✅ FIX: destructure rows
+    // fixed destructure rows
     const [rows] = await db.query(sql, [
       department,
       formatYearLabel(year)
@@ -1189,7 +1195,7 @@ app.post(
         });
       }
 
-      // ✅ FIX: destructure result
+      // fixed destructure result
       const [result] = await db.query(
         `
         INSERT INTO announcementtable (title, message, date)
@@ -1229,7 +1235,7 @@ app.put(
         });
       }
 
-      // ✅ FIX: destructure result
+      // fixed destructure result
       const [result] = await db.query(
         `
         UPDATE announcementtable
@@ -1267,7 +1273,7 @@ app.delete(
   allowRoles("admin", "teacher"),
   async (req, res) => {
     try {
-      // ✅ FIX: destructure result
+      // fixed destructure result
       const [result] = await db.query(
         "DELETE FROM announcementtable WHERE id = ?",
         [req.params.id]
@@ -1304,7 +1310,7 @@ app.post("/login", async (req, res) => {
   try {
     let table = "";
 
-    // 🔁 Decide table based on role
+    // Decide table based on role
     if (role === "admin") table = "usertable";
     else if (role === "teacher") table = "teachertable";
     else if (role === "student") table = "studenttable";
@@ -1335,7 +1341,7 @@ app.post("/login", async (req, res) => {
       return res.json({ success: false, message: "Invalid credentials" });
     }
 
-    // ✅ SUCCESS
+    // SUCCESS
     return res.json({
       success: true,
       user: {

@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const addBtn = document.getElementById("add-department");
   const role = localStorage.getItem("role");
 
-  let DEPARTMENTS = []; // ✅ cache
+  let DEPARTMENTS = []; 
 
   /* ================= LOAD DEPARTMENTS ================= */
   function loadDepartments() {
