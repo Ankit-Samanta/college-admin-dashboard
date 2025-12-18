@@ -65,7 +65,7 @@ function allowRoles(...roles) {
 }
 
 // DASHBOARD COUNTS
-app.get("/dashboard/counts", allowRoles("admin", "teacher"), async (req, res) => {
+app.get("/dashboard/counts", allowRoles("admin", "teacher", "student"), async (req, res) => {
   try {
     const [[students]] = await db.query("SELECT COUNT(*) AS count FROM studenttable");
     const [[teachers]] = await db.query("SELECT COUNT(*) AS count FROM teachertable");
@@ -1099,6 +1099,51 @@ app.post("/attendance/bulk", allowRoles("admin", "teacher"), async (req, res) =>
     res.status(500).json({ success: false, error: "Failed to save attendance" });
   }
 });
+// ================= STUDENT ATTENDANCE (SELF VIEW) =================
+app.get(
+  "/attendance/my",
+  allowRoles("student"),
+  async (req, res) => {
+    try {
+      const { email, date } = req.query;
+
+      if (!email || !date) {
+        return res.json({ success: true, data: [] });
+      }
+
+      // Find student by email
+      const [students] = await db.query(
+        "SELECT id, name, department, year FROM studenttable WHERE email = ?",
+        [email]
+      );
+
+      if (!students.length) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const student = students[0];
+
+      // Fetch attendance for that student
+      const [rows] = await db.query(
+        `
+        SELECT student_name, department, year, status
+        FROM attendancetable
+        WHERE student_id = ?
+          AND DATE(date) = DATE(?)
+        `,
+        [student.id, date]
+      );
+
+      res.json({ success: true, data: rows });
+    } catch (err) {
+      console.error("Student attendance fetch error:", err);
+      res.status(500).json({
+        success: false,
+        message: "Failed to load student attendance"
+      });
+    }
+  }
+);
 
 
 // ================= ANNOUNCEMENTS =================

@@ -1,14 +1,23 @@
 document.addEventListener("DOMContentLoaded", () => {
-
   const role = localStorage.getItem("role");
   const addBtn = document.getElementById("add-student");
 
- loadStudentDepartments();
-  loadStudents();
+  loadStudentDepartments();
 
-  document.getElementById("student-filter-dept").addEventListener("change", loadStudents);
-  document.getElementById("student-filter-year").addEventListener("change", loadStudents);
+  // ✅ ONLY admin & teacher can load students
+  if (role === "admin" || role === "teacher") {
+    loadStudents();
 
+    document
+      .getElementById("student-filter-dept")
+      ?.addEventListener("change", loadStudents);
+
+    document
+      .getElementById("student-filter-year")
+      ?.addEventListener("change", loadStudents);
+  }
+
+  // ✅ admin-only add button
   if (role === "admin") {
     addBtn.style.display = "inline-block";
     addBtn.addEventListener("click", addStudent);
@@ -16,6 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
     addBtn.style.display = "none";
   }
 });
+
 
 /* ================= HELPERS ================= */
 function formatYear(y) {

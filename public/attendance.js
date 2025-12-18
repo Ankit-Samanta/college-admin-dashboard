@@ -7,14 +7,67 @@ document.addEventListener("DOMContentLoaded", () => {
   loadDepartments();
 
   const loadBtn = document.getElementById("load-attendance");
-  if (loadBtn) {
-    if (role !== "admin" && role !== "teacher") {
-      loadBtn.style.display = "none";
-    } else {
-      loadBtn.addEventListener("click", loadAttendanceTable);
-    }
+
+  if (role === "admin" || role === "teacher") {
+    loadBtn?.addEventListener("click", loadAttendanceTable);
+  } else {
+    // STUDENT VIEW
+    if (loadBtn) loadBtn.style.display = "none";
+    hideAttendanceFilters();
+    loadStudentAttendance(); 
   }
 });
+
+/* ================= STUDENT VIEW ================= */
+
+function hideAttendanceFilters() {
+  document.getElementById("attendance-filter-dept").style.display = "none";
+  document.getElementById("attendance-filter-year").style.display = "none";
+}
+
+async function loadStudentAttendance() {
+  const date = document.getElementById("attendance-date")?.value;
+  const role = localStorage.getItem("role");
+  const email = localStorage.getItem("email");
+
+  if (!date || !email) return;
+
+  const tbody = document.querySelector("#attendance-table tbody");
+  tbody.innerHTML = `<tr><td colspan="4">Loading...</td></tr>`;
+
+  try {
+    const res = await fetch(
+      `${BASE_URL}/attendance/my?date=${encodeURIComponent(date)}&email=${encodeURIComponent(email)}`,
+      { headers: { "x-role": role } }
+    );
+
+    const json = await res.json();
+    const records = json.data || [];
+
+    tbody.innerHTML = "";
+
+    if (!records.length) {
+      tbody.innerHTML = `<tr><td colspan="4">No attendance found</td></tr>`;
+      return;
+    }
+
+    records.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(r.student_name)}</td>
+        <td>${escapeHtml(r.status)}</td>
+        <td>${escapeHtml(r.department)}</td>
+        <td>${escapeHtml(r.year)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error("Student attendance error:", err);
+    tbody.innerHTML = `<tr><td colspan="4">Failed to load attendance</td></tr>`;
+  }
+}
+
+/* ================= ADMIN / TEACHER ================= */
 
 function ensureDatePicker() {
   const el = document.getElementById("attendance-date");
@@ -31,19 +84,14 @@ function loadDepartments() {
       if (!Array.isArray(data)) return;
 
       const deptFilter = document.getElementById("attendance-filter-dept");
-      if (!deptFilter) return;
-
       deptFilter.innerHTML = `<option value="">Select Department</option>`;
+
       data.forEach(d => {
         if (d?.name) {
-          deptFilter.insertAdjacentHTML(
-            "beforeend",
-            `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`
-          );
+          deptFilter.innerHTML += `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`;
         }
       });
-    })
-    .catch(err => console.error("Departments load failed:", err));
+    });
 }
 
 async function loadAttendanceTable() {
