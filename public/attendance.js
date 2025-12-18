@@ -6,16 +6,23 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureDatePicker();
   loadDepartments();
 
-  const loadBtn = document.getElementById("load-attendance");
+const loadBtn = document.getElementById("load-attendance");
 
-  if (role === "admin" || role === "teacher") {
-    loadBtn?.addEventListener("click", loadAttendanceTable);
-  } else {
-    // STUDENT VIEW
-    if (loadBtn) loadBtn.style.display = "none";
-    hideAttendanceFilters();
-    loadStudentAttendance(); 
-  }
+if (role === "admin" || role === "teacher") {
+  loadBtn?.addEventListener("click", loadAttendanceTable);
+} else {
+  // STUDENT MODE
+  if (loadBtn) loadBtn.style.display = "none";
+  hideAttendanceFilters();
+
+  // 🔥 IMPORTANT: reload attendance when date changes
+  document
+    .getElementById("attendance-date")
+    ?.addEventListener("change", loadStudentAttendance);
+
+  loadStudentAttendance();
+}
+
 });
 
 /* ================= STUDENT VIEW ================= */
@@ -26,8 +33,9 @@ function hideAttendanceFilters() {
 }
 
 async function loadStudentAttendance() {
-  const date = document.getElementById("attendance-date")?.value;
   const role = localStorage.getItem("role");
+if (role !== "student") return;
+  const date = document.getElementById("attendance-date")?.value;
   const email = localStorage.getItem("email");
 
   if (!date || !email) return;
