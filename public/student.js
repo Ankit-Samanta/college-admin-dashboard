@@ -133,17 +133,25 @@ function editStudent(id) {
     .then(res => res.json())
     .then(s => {
       const name = prompt("Name:", s.name);
+      const roll = prompt("Roll Number:", s.roll);
       const email = prompt("Email:", s.email);
       const department = prompt("Department:", s.department);
       let year = formatYear(prompt("Year:", s.year));
       const password = prompt("New password (leave blank to keep)");
 
-      if (!name || !email || !department || !year) {
-        alert("Missing fields");
+      if (!name || !roll || !email || !department || !year) {
+        alert("All fields except password are required");
         return;
       }
 
-      const payload = { name, email, department, year };
+      const payload = {
+        name,
+        roll,
+        email,
+        department,
+        year
+      };
+
       if (password) payload.password = password;
 
       fetch(`${BASE_URL}/students/${id}`, {
@@ -161,6 +169,7 @@ function editStudent(id) {
         });
     });
 }
+
 
 /* ================= DELETE ================= */
 function deleteStudent(id) {

@@ -165,15 +165,23 @@ app.post("/students", allowRoles("admin"), async (req, res) => {
 // UPDATE STUDENT (BY ID)
 app.put("/students/:id", allowRoles("admin"), async (req, res) => {
   try {
-    const { name, email, department, year, password } = req.body;
+    const { name, roll, email, department, year, password } = req.body;
 
-    if (!name || !email || !department || !year) {
+    if (!name || !roll || !email || !department || !year) {
       return res.status(400).json({ message: "Missing fields" });
     }
 
-    const fields = ["name = ?", "email = ?", "department = ?", "year = ?"];
+    const fields = [
+      "name = ?",
+      "roll = ?",
+      "email = ?",
+      "department = ?",
+      "year = ?"
+    ];
+
     const values = [
       name,
+      roll,
       email,
       department,
       formatYearLabel(year)
@@ -200,6 +208,7 @@ app.put("/students/:id", allowRoles("admin"), async (req, res) => {
     res.status(500).json({ message: "Update failed" });
   }
 });
+
 
 // DELETE STUDENT (BY ID)
 app.delete("/students/:id", allowRoles("admin"), async (req, res) => {
