@@ -1,4 +1,4 @@
-const BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+const BASE_URL = window.BASE_URL || window.location.origin;
 
 document.addEventListener("DOMContentLoaded", () => {
   const sidebarLinks = document.querySelectorAll(".sidebar ul li a");

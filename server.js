@@ -12,13 +12,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-
 // File upload setup (PDFs, etc.)
 
-const uploadsDir = path.join(__dirname, "uploads");
+const uploadsRoot =
+  process.env.UPLOADS_DIR || path.join(__dirname, "uploads");
+const uploadsDir = uploadsRoot;
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
     cb(null, uploadsDir);
   },
   filename: function (req, file, cb) {
@@ -739,7 +740,6 @@ app.delete(
 
       const filePath = path.join(uploadsDir, rows[0].filename);
 
-      // Delete file (non-blocking)
       fs.unlink(filePath, err => {
         if (err) console.warn("File delete warning:", err.message);
       });
@@ -1369,7 +1369,7 @@ app.post("/login", async (req, res) => {
 
 
 // START SERVER
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);

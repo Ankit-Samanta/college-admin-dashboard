@@ -1,1 +1,1 @@
-window.BASE_URL = "https://college-admin-dashboard-production.up.railway.app";
+window.BASE_URL = "https://college-admin-dashboard-jgec.onrender.com";
