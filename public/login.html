@@ -65,6 +65,47 @@
       margin-top: 10px;
       text-align: center;
     }
+
+    .demo-box {
+      background: #eaf4ff;
+      border: 1px solid #b3d4f5;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 18px;
+    }
+    .demo-box p {
+      font-size: 12px;
+      font-weight: bold;
+      color: #1a5fa8;
+      margin-bottom: 8px;
+      text-align: center;
+      letter-spacing: 0.3px;
+    }
+    .demo-btns {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+    .demo-btn {
+      flex: 1;
+      padding: 7px 4px;
+      font-size: 12px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      background: #1a5fa8;
+      color: white;
+      width: auto;
+    }
+    .demo-btn:hover { background: #154d8c; }
+    .demo-creds {
+      font-size: 10.5px;
+      color: #444;
+      margin-top: 8px;
+      text-align: center;
+      line-height: 1.6;
+    }
   </style>
 </head>
 
@@ -72,6 +113,21 @@
 
   <div class="login-container">
     <h2>College Admin Login</h2>
+
+    <!-- DEMO CREDENTIALS BOX -->
+    <div class="demo-box">
+      <p>🔐 Demo Access — Click to Auto-Login</p>
+      <div class="demo-btns">
+        <button class="demo-btn" onclick="demoLogin('admin@college.com','password','admin')">Admin</button>
+        <button class="demo-btn" onclick="demoLogin('demo.teacher@college.com','teacher123','teacher')">Teacher</button>
+        <button class="demo-btn" onclick="demoLogin('demo.student@college.com','student123','student')">Student</button>
+      </div>
+      <div class="demo-creds">
+        Admin: admin@college.com / password<br>
+        Teacher: demo.teacher@college.com / teacher123<br>
+        Student: demo.student@college.com / student123
+      </div>
+    </div>
     <div class="form-group">
       <label for="email">Email</label>
       <input type="email" id="email" placeholder="Enter your email" />

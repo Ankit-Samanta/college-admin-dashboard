@@ -1,4 +1,11 @@
-function login() { 
+function demoLogin(email, password, role) {
+  document.getElementById("email").value = email;
+  document.getElementById("password").value = password;
+  document.getElementById("role").value = role;
+  login();
+}
+
+function login() {
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
   const role = document.getElementById("role").value;
